@@ -16,11 +16,11 @@ class Flickr8k(Dataset):
         self.root = os.path.expanduser(root)
         self.ann_file = os.path.expanduser(ann_file)
         self.transform = transform
-        split_f = open(split_file, 'r')
-        self.split = [line for line in split_f.readlines()]
+        with open(split_file, 'r') as split_f:
+            self.split = [line for line in split_f.readlines()]
 
         self.annotations = {}
-        with open(ann_file) as f:
+        with open(ann_file, 'r') as f:
             for line in f:
                 (key, val) = line.split("	")
                 self.annotations[key] = val[:-1]

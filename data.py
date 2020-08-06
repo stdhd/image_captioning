@@ -1,5 +1,6 @@
 from typing import List
 
+import torch
 from torch.utils.data import Dataset
 import os
 from PIL import Image
@@ -19,6 +20,11 @@ class Flickr8k(Dataset):
         self.root = os.path.expanduser(root)
         self.ann_file = os.path.expanduser(ann_file)
         self.transform = transform
+
+        self.word_list = list_of_unique_words(ann_file)
+        self.word_to_int = {word: idx for idx, word in enumerate(self.word_list)}
+        self.one_hot_matrix = torch.eye(len(self.word_list))
+
         with open(split_file, 'r') as split_f:
             self.split = [line for line in split_f.readlines()]
 
@@ -26,7 +32,7 @@ class Flickr8k(Dataset):
         with open(ann_file, 'r') as f:
             for line in f:
                 (key, val) = line.split("	")
-                self.annotations[key] = val[:-1]
+                self.annotations[key] = val[:-1].lower().split() # TODO End of seq
 
         self.ids = list(sorted(self.annotations.keys()))
 
@@ -40,16 +46,24 @@ class Flickr8k(Dataset):
 
         # Captions, for each image we have 5 captions
         targets = []
-        for i in range(5):
-            targets.append(self.annotations["{}#{}".format(image_name, i)])
-
-        return img, targets
+        # for i in range(1):
+            # targets.append(self.annotations["{}#{}".format(image_name, i)])
+        # targets = [self.one_hot_matrix[self.word_to_int[word]] for word in self.annotations["{}#{}".format(image_name, 0)]]
+        targets = [self.one_hot_matrix[self.word_to_int[word]] for word in self.annotations["{}#{}".format(image_name, 0)]]
+        target_tensors = torch.Tensor(len(targets), len(self.word_list))
+        for i, target in enumerate(targets):
+            target_tensors[i] = target
+        # targets = torch.Tensor(targets)
+        # b = torch.Tensor(len(self.word_list), len(targets))
+        # torch.cat(targets, out=b)
+        return img, target_tensors
 
     def __len__(self):
         return len(self.split)
 
 
 def list_of_unique_words(file_name: str) -> List[str]:
+    # TODO combine with Flickr8k (end of seq, start of seq tokens, etc...)
     word_list = []
     with open(file_name) as csv_file:
         data = csv.reader(csv_file, delimiter='\t')

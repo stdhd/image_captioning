@@ -1,8 +1,37 @@
 from typing import Callable
 
+import torch
 import torch.nn as nn
+from joeynmt.decoders import RecurrentDecoder
+from joeynmt.embeddings import Embeddings
 from torchsummary import summary
 from torchvision import models
+
+from torch import Tensor, optim
+
+from data import list_of_unique_words, Flickr8k
+
+
+class Image2Caption(nn.Module):
+    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module):
+        super(Image2Caption, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.embeddings = embeddings
+
+    def forward(self, x: Tensor, y: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+        x = self.encoder(x)
+
+        trg_embed = self.embeddings(y.long())
+        # unroll_steps = trg_input.size(1)
+        outputs, hidden, att_probs, att_vectors = self.decoder(
+            trg_embed,
+            encoder_output=x,
+            encoder_hidden=x,
+            src_mask=torch.ones(x.shape[0], 1, x.shape[1]),
+            unroll_steps=10
+        )
+        return outputs, hidden, att_probs, att_vectors
 
 
 class Encoder(nn.Module):
@@ -12,13 +41,22 @@ class Encoder(nn.Module):
         self.features = loaded_model.features[:-1]  # drop MaxPool2d-layer
         self.avgpool = nn.AdaptiveAvgPool2d((14, 14))  # allow input images of variable size (14×14×512 as in paper 4.3)
 
-    def forward(self, x):
+        self.output_size = 128
+
+    def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
         x = self.avgpool(x)  # 512×14×14
-        # x = x.view(x.shape[0], 512, -1)  # 512×196
+        x = x.view(x.shape[0], 512, -1)  # 512×196
+        x = x.permute(0, 2, 1)  # 196×512
         return x
 
 
 if __name__ == '__main__':
-    model = Encoder(models.vgg16, pretrained=True)
-    summary(model, input_size=(3, 224, 224), device='cpu')
+    encoder = Encoder(models.vgg16, pretrained=True)
+    # summary(encoder, input_size=(3, 224, 224), device='cpu')
+    unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
+    vocab_size = len(unique_words_list)
+    embeddings = Embeddings(embedding_dim=512, vocab_size=vocab_size)
+    decoder = RecurrentDecoder("lstm", 512, 128, encoder, vocab_size=vocab_size, init_hidden='last')
+
+    model = Image2Caption(encoder, decoder, embeddings)

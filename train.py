@@ -1,6 +1,55 @@
-from data import Flickr8k
+from torch.utils.data import DataLoader
+
 from torchvision import transforms as T
 
-normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
-data_train = Flickr8k('Flicker8k_Dataset', 'Flickr_8k.trainImages.txt', 'Flickr8k.token.txt', transform=transform)
+import torch.nn as nn
+from joeynmt.decoders import RecurrentDecoder
+from joeynmt.embeddings import Embeddings
+from torchvision import models
+
+from torch import optim
+
+from data import list_of_unique_words, Flickr8k
+from model import Image2Caption, Encoder
+
+if __name__ == '__main__':
+
+    normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
+    data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
+                          transform=transform)
+    dataloader_train = DataLoader(data_train, 1, shuffle=True, num_workers=0)
+
+    encoder = Encoder(models.vgg16, pretrained=True)
+    # summary(encoder, input_size=(3, 224, 224), device='cpu')
+    unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
+    vocab_size = len(unique_words_list)
+    embeddings = Embeddings(embedding_dim=512, vocab_size=vocab_size)
+    decoder = RecurrentDecoder("lstm", 512, 128, encoder, vocab_size=vocab_size, init_hidden='last')
+
+    model = Image2Caption(encoder, decoder, embeddings)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+    for epoch in range(2):  # loop over the dataset multiple times
+        running_loss = 0.0
+        for i, data in enumerate(dataloader_train, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = model(inputs, labels)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 2000 == 1999:  # print every 2000 mini-batches
+                print('[%d, %5d] loss: %.3f' %
+                      (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0

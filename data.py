@@ -1,7 +1,10 @@
+from typing import List
+
 from torch.utils.data import Dataset
 import os
 from PIL import Image
-import math
+import csv
+
 
 class Flickr8k(Dataset):
 
@@ -44,3 +47,12 @@ class Flickr8k(Dataset):
 
     def __len__(self):
         return len(self.split)
+
+
+def list_of_unique_words(file_name: str) -> List[str]:
+    word_list = []
+    with open(file_name) as csv_file:
+        data = csv.reader(csv_file, delimiter='\t')
+        for row in data:
+            word_list.extend(row[-1].lower().split())
+    return list(set(word_list))

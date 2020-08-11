@@ -14,6 +14,8 @@ from torch import optim
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
@@ -38,7 +40,7 @@ if __name__ == '__main__':
                                vocab_size=vocab_size,
                                init_hidden='last')
 
-    model = Image2Caption(encoder, decoder, embeddings)
+    model = Image2Caption(encoder, decoder, embeddings, device).to(device)
 
     criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
@@ -48,6 +50,8 @@ if __name__ == '__main__':
         for i, data in enumerate(dataloader_train, 0):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()

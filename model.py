@@ -13,11 +13,12 @@ from data import list_of_unique_words, Flickr8k
 
 
 class Image2Caption(nn.Module):
-    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module):
+    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module, device: str):
         super(Image2Caption, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.embeddings = embeddings
+        self.device = device
 
     def forward(self, x: Tensor, y: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         x = self.encoder(x)
@@ -27,8 +28,8 @@ class Image2Caption(nn.Module):
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed,
             encoder_output=x,
-            encoder_hidden=torch.zeros((x.shape[0], self.encoder.output_size)),
-            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte(),
+            encoder_hidden=torch.zeros((x.shape[0], self.encoder.output_size)).to(self.device),
+            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
             unroll_steps=y.shape[1]
         )
         return outputs, hidden, att_probs, att_vectors

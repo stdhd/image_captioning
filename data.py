@@ -49,8 +49,8 @@ class Flickr8k(Dataset):
         # for i in range(1):
             # targets.append(self.annotations["{}#{}".format(image_name, i)])
         # targets = [self.one_hot_matrix[self.word_to_int[word]] for word in self.annotations["{}#{}".format(image_name, 0)]]
-        targets = [self.one_hot_matrix[self.word_to_int[word]] for word in self.annotations["{}#{}".format(image_name, 0)]]
-        target_tensors = torch.Tensor(len(targets), len(self.word_list))
+        targets = [self.word_to_int[word] for word in self.annotations["{}#{}".format(image_name, 0)]]
+        target_tensors = torch.Tensor(len(targets))
         for i, target in enumerate(targets):
             target_tensors[i] = target
         # targets = torch.Tensor(targets)

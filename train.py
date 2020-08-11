@@ -15,7 +15,6 @@ from tqdm import tqdm, trange
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
 
-<<<<<<< HEAD
 import numpy as np
 
 
@@ -25,8 +24,6 @@ def print_sequence(dataset: Flickr8k, seq: np.array):
         ids = np.argmax(seq[batch], axis=-1)
         print(" ".join(wl[ids]))
 
-=======
->>>>>>> b694f155b202c287f9d5cac7ee7b5b6a0ade5551
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
@@ -71,7 +68,6 @@ if __name__ == '__main__':
 
             # forward + backward + optimize
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
-            print_sequence(data_train, outputs.detach().numpy())
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels.contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.size(-1)), targets.long())
@@ -81,6 +77,7 @@ if __name__ == '__main__':
             # print statistics
             running_loss += loss.item()
             if i % 2000 == 1999:  # print every 2000 mini-batches
+                print_sequence(data_train, outputs.cpu().detach().numpy())
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0

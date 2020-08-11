@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 
 from torchvision import transforms as T
@@ -13,19 +14,27 @@ from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
 
 if __name__ == '__main__':
-
+    embed_size = 128
+    hidden_size = 512
+    max_sequence_size = 5
+    batch_size = 1
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
                           transform=transform)
-    dataloader_train = DataLoader(data_train, 1, shuffle=True, num_workers=0)
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
-    encoder = Encoder(models.vgg16, pretrained=True)
+    encoder = Encoder(models.vgg16, output_size=512, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
     unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
     vocab_size = len(unique_words_list)
-    embeddings = Embeddings(embedding_dim=512, vocab_size=vocab_size)
-    decoder = RecurrentDecoder("lstm", 512, 128, encoder, vocab_size=vocab_size, init_hidden='last')
+    embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
+    decoder = RecurrentDecoder(rnn_type="lstm",
+                               emb_size=embed_size,
+                               hidden_size=hidden_size,
+                               encoder=encoder,
+                               vocab_size=vocab_size,
+                               init_hidden='last')
 
     model = Image2Caption(encoder, decoder, embeddings)
 
@@ -42,7 +51,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = model(inputs, labels)
+            outputs, hidden, att_probs, att_vectors = model(inputs, labels)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()

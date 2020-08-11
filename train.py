@@ -15,6 +15,7 @@ from tqdm import tqdm, trange
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
 
+<<<<<<< HEAD
 import numpy as np
 
 
@@ -24,6 +25,8 @@ def print_sequence(dataset: Flickr8k, seq: np.array):
         ids = np.argmax(seq[batch], axis=-1)
         print(" ".join(wl[ids]))
 
+=======
+>>>>>>> b694f155b202c287f9d5cac7ee7b5b6a0ade5551
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':

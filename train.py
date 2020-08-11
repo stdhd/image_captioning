@@ -14,6 +14,16 @@ from torch import optim
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
 
+import numpy as np
+
+
+def print_sequence(dataset: Flickr8k, seq: np.array):
+    wl = np.array(dataset.word_list)
+    for batch in range (seq.shape[0]):
+        ids = np.argmax(seq[batch], axis=-1)
+        print(" ".join(wl[ids]))
+
+
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512

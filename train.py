@@ -10,6 +10,7 @@ from joeynmt.embeddings import Embeddings
 from torchvision import models
 
 from torch import optim
+from tqdm import tqdm, trange
 
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
@@ -45,9 +46,9 @@ if __name__ == '__main__':
     criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-    for epoch in range(2):  # loop over the dataset multiple times
+    for epoch in trange(2):  # loop over the dataset multiple times
         running_loss = 0.0
-        for i, data in enumerate(dataloader_train, 0):
+        for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
             inputs = inputs.to(device)

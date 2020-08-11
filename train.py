@@ -10,6 +10,7 @@ from joeynmt.embeddings import Embeddings
 from torchvision import models
 
 from torch import optim
+from tqdm import tqdm, trange
 
 from data import list_of_unique_words, Flickr8k
 from model import Image2Caption, Encoder
@@ -23,6 +24,7 @@ def print_sequence(dataset: Flickr8k, seq: np.array):
         ids = np.argmax(seq[batch], axis=-1)
         print(" ".join(wl[ids]))
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
     embed_size = 128
@@ -48,22 +50,25 @@ if __name__ == '__main__':
                                vocab_size=vocab_size,
                                init_hidden='last')
 
-    model = Image2Caption(encoder, decoder, embeddings)
+    model = Image2Caption(encoder, decoder, embeddings, device).to(device)
 
     criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-    for epoch in range(2):  # loop over the dataset multiple times
+    for epoch in trange(2):  # loop over the dataset multiple times
         running_loss = 0.0
-        for i, data in enumerate(dataloader_train, 0):
+        for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
+            print_sequence(data_train, outputs.detach().numpy())
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels.contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.size(-1)), targets.long())

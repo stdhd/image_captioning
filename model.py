@@ -27,21 +27,21 @@ class Image2Caption(nn.Module):
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed,
             encoder_output=x,
-            encoder_hidden=x,
-            src_mask=torch.ones(x.shape[0], 1, x.shape[1]),
-            unroll_steps=10
+            encoder_hidden=torch.zeros((x.shape[0], self.encoder.output_size)),
+            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte(),
+            unroll_steps=y.shape[1]
         )
         return outputs, hidden, att_probs, att_vectors
 
 
 class Encoder(nn.Module):
-    def __init__(self, base_arch: Callable, pretrained=True):
+    def __init__(self, base_arch: Callable, output_size, pretrained=True):
         super(Encoder, self).__init__()
         loaded_model = base_arch(pretrained)
         self.features = loaded_model.features[:-1]  # drop MaxPool2d-layer
         self.avgpool = nn.AdaptiveAvgPool2d((14, 14))  # allow input images of variable size (14×14×512 as in paper 4.3)
 
-        self.output_size = 128
+        self.output_size = output_size
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
@@ -57,6 +57,11 @@ if __name__ == '__main__':
     unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
     vocab_size = len(unique_words_list)
     embeddings = Embeddings(embedding_dim=512, vocab_size=vocab_size)
-    decoder = RecurrentDecoder("lstm", 512, 128, encoder, vocab_size=vocab_size, init_hidden='last')
+    decoder = RecurrentDecoder(rnn_type="lstm",
+                               emb_size=512,
+                               hidden_size=512,
+                               encoder=encoder,
+                               vocab_size=vocab_size,
+                               init_hidden='last')
 
     model = Image2Caption(encoder, decoder, embeddings)

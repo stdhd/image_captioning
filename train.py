@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms as T
 
 import torch.nn as nn
+import torch.nn.functional as F
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
 from torchvision import models
@@ -16,6 +17,7 @@ from model import Image2Caption, Encoder
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
+    output_size = 512 # output size for encoder = input size for decoder
     max_sequence_size = 5
     batch_size = 1
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -24,7 +26,7 @@ if __name__ == '__main__':
                           transform=transform)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
-    encoder = Encoder(models.vgg16, output_size=512, pretrained=True)
+    encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
     unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
     vocab_size = len(unique_words_list)
@@ -38,7 +40,7 @@ if __name__ == '__main__':
 
     model = Image2Caption(encoder, decoder, embeddings)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
     for epoch in range(2):  # loop over the dataset multiple times
@@ -52,7 +54,9 @@ if __name__ == '__main__':
 
             # forward + backward + optimize
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
-            loss = criterion(outputs, labels)
+            log_probs = F.log_softmax(outputs, dim=-1)
+            targets = labels.contiguous().view(-1)
+            loss = criterion(log_probs.contiguous().view(-1, log_probs.size(-1)), targets.long())
             loss.backward()
             optimizer.step()
 
@@ -62,3 +66,4 @@ if __name__ == '__main__':
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
+

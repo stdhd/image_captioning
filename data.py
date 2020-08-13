@@ -1,72 +1,53 @@
-from typing import List
-
-import torch
-from torch.utils.data import Dataset
 import os
+
 from PIL import Image
-import csv
+from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
+from torch.utils.data import Dataset
+from torchtext import data
 
 
 class Flickr8k(Dataset):
 
-    def __init__(self, root, split_file, ann_file, transform=None):
+    def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None):
         """
-        Flickr Dartaset class to use with dataloader
-        :param root: dataset directory
-        :param split_file: file listing all used images in split - vary this parameter for train/test split
-        :param ann_file: file containing annotation tokens
+        Flickr Dataset class to use with dataloader
+        :param data_path: dataset directory
+        :param split_file_name: file listing all used images in split - vary this parameter for train/test split
+        :param ann_file_name: file containing annotation tokens
         :param transform: torchvision transforms object to be applied on the images
+        :param fix_length: pads caption fix_length if provided, otherwise pads to the length of the longest example in the batch
         """
-        self.root = os.path.expanduser(root)
-        self.ann_file = os.path.expanduser(ann_file)
+        self.root = os.path.expanduser(data_path)
+        self.ann_file = os.path.expanduser(ann_file_name)
         self.transform = transform
 
-        self.word_list = list_of_unique_words(ann_file)
-        self.word_to_int = {word: idx for idx, word in enumerate(self.word_list)}
-        self.one_hot_matrix = torch.eye(len(self.word_list))
+        self.idx2image = []
+        self.idx2caption = []
 
-        with open(split_file, 'r') as split_f:
-            self.split = [line for line in split_f.readlines()]
+        valid_image_file_names = set([line.rstrip() for line in open(split_file_name, 'r')])
+        annotations = [line.rstrip() for line in open(ann_file_name, 'r')]
 
-        self.annotations = {}
-        with open(ann_file, 'r') as f:
-            for line in f:
-                (key, val) = line.split("	")
-                self.annotations[key] = val[:-1].lower().split() # TODO End of seq
+        for annotation in annotations:
+            image_file_name, caption = annotation.split('\t')
+            if image_file_name[:-2] in valid_image_file_names:
+                self.idx2image.append(image_file_name[:-2])
+                self.idx2caption.append(caption.lower().split())
 
-        self.ids = list(sorted(self.annotations.keys()))
+        self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
+        self.corpus.build_vocab(self.idx2caption)
+        self.idx2caption = self.corpus.pad(self.idx2caption)
 
     def __getitem__(self, index):
-        image_name = self.split[index][:-1]
+        image_name = self.idx2image[index]
 
         # Image
         img = Image.open(os.path.join(self.root, image_name)).convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
 
-        # Captions, for each image we have 5 captions
-        targets = []
-        # for i in range(1):
-            # targets.append(self.annotations["{}#{}".format(image_name, i)])
-        # targets = [self.one_hot_matrix[self.word_to_int[word]] for word in self.annotations["{}#{}".format(image_name, 0)]]
-        targets = [self.word_to_int[word] for word in self.annotations["{}#{}".format(image_name, 0)]]
-        target_tensors = torch.Tensor(len(targets))
-        for i, target in enumerate(targets):
-            target_tensors[i] = target
-        # targets = torch.Tensor(targets)
-        # b = torch.Tensor(len(self.word_list), len(targets))
-        # torch.cat(targets, out=b)
-        return img, target_tensors
+        # Captions, for image
+        caption = self.corpus.numericalize([self.idx2caption[index]]).squeeze()
+        return img, caption
 
     def __len__(self):
-        return len(self.split)
-
-
-def list_of_unique_words(file_name: str) -> List[str]:
-    # TODO combine with Flickr8k (end of seq, start of seq tokens, etc...)
-    word_list = []
-    with open(file_name) as csv_file:
-        data = csv.reader(csv_file, delimiter='\t')
-        for row in data:
-            word_list.extend(row[-1].lower().split())
-    return list(set(word_list))
+        return len(self.idx2caption)

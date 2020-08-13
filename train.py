@@ -40,8 +40,7 @@ if __name__ == '__main__':
 
     encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
-    unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
-    vocab_size = len(unique_words_list)
+    vocab_size = len(data_train.word_list)
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
     decoder = RecurrentDecoder(rnn_type="lstm",
                                emb_size=embed_size,

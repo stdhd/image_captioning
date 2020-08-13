@@ -1,6 +1,4 @@
-import csv
 import os
-from typing import List
 
 from PIL import Image
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
@@ -53,13 +51,3 @@ class Flickr8k(Dataset):
 
     def __len__(self):
         return len(self.idx2caption)
-
-
-def list_of_unique_words(file_name: str) -> List[str]:
-    # TODO combine with Flickr8k (end of seq, start of seq tokens, etc...)
-    word_list = []
-    with open(file_name) as csv_file:
-        data = csv.reader(csv_file, delimiter='\t')
-        for row in data:
-            word_list.extend(row[-1].lower().split())
-    return list(set(word_list))

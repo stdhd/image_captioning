@@ -19,29 +19,28 @@ import numpy as np
 
 
 def print_sequence(dataset: Flickr8k, seq: np.array):
-    wl = np.array(dataset.word_list)
-    for batch in range (seq.shape[0]):
-        ids = np.argmax(seq[batch], axis=-1)
-        print(" ".join(wl[ids]))
+    ids = np.argmax(seq, axis=-1)
+    print(" ".join([dataset.corpus.vocab.itos[id] for id in ids]))
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
-    output_size = 512 # output size for encoder = input size for decoder
+    output_size = 512  # output size for encoder = input size for decoder
     max_sequence_size = 5
-    batch_size = 1
+    batch_size = 8
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
-                          transform=transform)
+                          transform=transform, fix_length=18)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
     encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
     unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
-    vocab_size = len(unique_words_list)
+    vocab_size = len(data_train.corpus.vocab.itos)
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
     decoder = RecurrentDecoder(rnn_type="lstm",
                                emb_size=embed_size,
@@ -70,15 +69,14 @@ if __name__ == '__main__':
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels.contiguous().view(-1)
-            loss = criterion(log_probs.contiguous().view(-1, log_probs.size(-1)), targets.long())
+            loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
             loss.backward()
             optimizer.step()
 
             # print statistics
             running_loss += loss.item()
-            if i % 2000 == 1999:  # print every 2000 mini-batches
-                print_sequence(data_train, outputs.cpu().detach().numpy())
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2000))
+            if i != 0 and i % 50 == 0:
+                print_sequence(data_train, outputs.cpu().detach().numpy()[0])
+                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 50))
                 running_loss = 0.0
 

@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
+from torch.utils.tensorboard import SummaryWriter
 
 from data import Flickr8k
 from model import Image2Caption, Encoder
@@ -24,11 +25,9 @@ def print_sequence(dataset: Flickr8k, seq: np.array):
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def validation(model, dataloader_val):
-    print(len(dataloader_val))
+def validation(model, dataloader_val, writer, epoch):
     with torch.no_grad():
-        print("Begin validation")
-        running_loss = 0
+        loss_sum = 0
         for i, data in enumerate(tqdm(dataloader_val)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
@@ -40,8 +39,8 @@ def validation(model, dataloader_val):
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels.contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
-            running_loss += loss.item()
-        print(running_loss / len(dataloader_val))
+            loss_sum += loss.item()
+        writer.add_scalar('Loss/test', loss_sum.item() / len(dataloader_val) , epoch)
         # TODO: BLEU Score
 
 
@@ -50,13 +49,17 @@ if __name__ == '__main__':
     hidden_size = 512
     batch_size = 8
     fix_length = 18
+    summary_writer = SummaryWriter()
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
-
                           transform=transform, fix_length=fix_length)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
+
+    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt',
+                          transform=transform, fix_length=fix_length)
+    dataloader_dev = DataLoader(data_dev, batch_size, shuffle=True, num_workers=os.cpu_count())
 
     encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
@@ -100,3 +103,5 @@ if __name__ == '__main__':
                 print_sequence(data_train, outputs.cpu().detach().numpy()[0])
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 50))
                 running_loss = 0.0
+                #validation(model, dataloader_dev, summary_writer, epoch)
+    summary_writer.flush()

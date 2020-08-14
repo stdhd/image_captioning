@@ -23,18 +23,21 @@ class Flickr8k(Dataset):
 
         self.idx2image = []
         self.idx2caption = []
+        self.all_captions = []  # Captions on ENTIRE dataset (TRAIN+DEV+TEST)
 
+        # Get image file names for chosen TRAIN/DEV/TEST data
         valid_image_file_names = set([line.rstrip() for line in open(split_file_name, 'r')])
         annotations = [line.rstrip() for line in open(ann_file_name, 'r')]
 
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
+            self.all_captions.append(caption.lower().split())
             if image_file_name[:-2] in valid_image_file_names:
                 self.idx2image.append(image_file_name[:-2])
                 self.idx2caption.append(caption.lower().split())
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
-        self.corpus.build_vocab(self.idx2caption)
+        self.corpus.build_vocab(self.all_captions)  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
 
     def __getitem__(self, index):

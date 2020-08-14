@@ -1,21 +1,19 @@
+import os
+
+import numpy as np
 import torch
-from torch.utils.data import DataLoader
-
-from torchvision import transforms as T
-
 import torch.nn as nn
 import torch.nn.functional as F
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
-from torchvision import models
-
 from torch import optim
+from torch.utils.data import DataLoader
+from torchvision import models
+from torchvision import transforms as T
 from tqdm import tqdm, trange
 
 from data import Flickr8k
 from model import Image2Caption, Encoder
-
-import numpy as np
 
 
 def print_sequence(dataset: Flickr8k, seq: np.array):
@@ -50,21 +48,17 @@ def validation(model, dataloader_val):
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
-    output_size = 512  # output size for encoder = input size for decoder
     batch_size = 8
     fix_length = 18
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
-                          transform=transform, fix_length=fix_length)
-    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt',
-                          transform=transform, fix_length=fix_length)
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
-    dataloader_dev = DataLoader(data_dev, batch_size, shuffle=True, num_workers=0)
 
-    encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
-    # summary(encoder, input_size=(3, 224, 224), device='cpu')
+                          transform=transform, fix_length=fix_length)
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
+
+    encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
@@ -73,7 +67,7 @@ if __name__ == '__main__':
                                hidden_size=hidden_size,
                                encoder=encoder,
                                vocab_size=vocab_size,
-                               init_hidden='last')
+                               init_hidden='bridge')
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
 
@@ -98,7 +92,6 @@ if __name__ == '__main__':
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
             loss.backward()
             optimizer.step()
-            print_sequence(data_train, outputs.cpu().detach().numpy()[0])
 
             # print statistics
             running_loss += loss.item()
@@ -107,4 +100,3 @@ if __name__ == '__main__':
                 print_sequence(data_train, outputs.cpu().detach().numpy()[0])
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 50))
                 running_loss = 0.0
-

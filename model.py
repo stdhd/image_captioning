@@ -2,14 +2,7 @@ from typing import Callable
 
 import torch
 import torch.nn as nn
-from joeynmt.decoders import RecurrentDecoder
-from joeynmt.embeddings import Embeddings
-from torchsummary import summary
-from torchvision import models
-
-from torch import Tensor, optim
-
-from data import list_of_unique_words, Flickr8k
+from torch import Tensor
 
 
 class Image2Caption(nn.Module):
@@ -52,19 +45,3 @@ class Encoder(nn.Module):
         x = x.view(x.shape[0], x.shape[1], -1)  # 512×196
         x = x.permute(0, 2, 1)  # 196×512
         return x
-
-
-if __name__ == '__main__':
-    encoder = Encoder(models.vgg16, pretrained=True)
-    # summary(encoder, input_size=(3, 224, 224), device='cpu')
-    unique_words_list = list_of_unique_words('data/Flickr8k.token.txt')
-    vocab_size = len(unique_words_list)
-    embeddings = Embeddings(embedding_dim=512, vocab_size=vocab_size)
-    decoder = RecurrentDecoder(rnn_type="lstm",
-                               emb_size=512,
-                               hidden_size=512,
-                               encoder=encoder,
-                               vocab_size=vocab_size,
-                               init_hidden='last')
-
-    model = Image2Caption(encoder, decoder, embeddings)

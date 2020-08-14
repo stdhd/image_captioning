@@ -1,21 +1,17 @@
+import numpy as np
 import torch
-from torch.utils.data import DataLoader
-
-from torchvision import transforms as T
-
 import torch.nn as nn
 import torch.nn.functional as F
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
-from torchvision import models
-
 from torch import optim
+from torch.utils.data import DataLoader
+from torchvision import models
+from torchvision import transforms as T
 from tqdm import tqdm, trange
 
 from data import Flickr8k
 from model import Image2Caption, Encoder
-
-import numpy as np
 
 
 def print_sequence(dataset: Flickr8k, seq: np.array):
@@ -37,7 +33,6 @@ if __name__ == '__main__':
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
     encoder = Encoder(models.vgg16, pretrained=True)
-    # summary(encoder, input_size=(3, 224, 224), device='cpu')
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
@@ -71,7 +66,6 @@ if __name__ == '__main__':
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
             loss.backward()
             optimizer.step()
-            print_sequence(data_train, outputs.cpu().detach().numpy()[0])
 
             # print statistics
             running_loss += loss.item()
@@ -79,4 +73,3 @@ if __name__ == '__main__':
                 print_sequence(data_train, outputs.cpu().detach().numpy()[0])
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 50))
                 running_loss = 0.0
-

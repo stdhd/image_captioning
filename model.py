@@ -13,12 +13,16 @@ from data import list_of_unique_words, Flickr8k
 
 
 class Image2Caption(nn.Module):
-    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module, device: str):
+    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module, device: str, freeze_encoder: bool = True):
         super(Image2Caption, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.embeddings = embeddings
         self.device = device
+
+        if freeze_encoder:
+            for param in self.encoder.parameters():
+                param.requires_grad = False
 
     def forward(self, x: Tensor, y: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         x = self.encoder(x)

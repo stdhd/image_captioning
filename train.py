@@ -25,17 +25,43 @@ def print_sequence(dataset: Flickr8k, seq: np.array):
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
+def validation(model, dataloader_val):
+    print(len(dataloader_val))
+    with torch.no_grad():
+        print("Begin validation")
+        running_loss = 0
+        for i, data in enumerate(tqdm(dataloader_val)):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            # forward
+            outputs, hidden, att_probs, att_vectors = model(inputs, labels)
+            log_probs = F.log_softmax(outputs, dim=-1)
+            targets = labels.contiguous().view(-1)
+            loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+            running_loss += loss.item()
+        print(running_loss / len(dataloader_val))
+        # TODO: BLEU Score
+
+
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
     output_size = 512  # output size for encoder = input size for decoder
-    max_sequence_size = 5
     batch_size = 8
+    fix_length = 18
+
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
-                          transform=transform, fix_length=18)
+                          transform=transform, fix_length=fix_length)
+    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt',
+                          transform=transform, fix_length=fix_length)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
+    dataloader_dev = DataLoader(data_dev, batch_size, shuffle=True, num_workers=0)
 
     encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
@@ -76,6 +102,7 @@ if __name__ == '__main__':
 
             # print statistics
             running_loss += loss.item()
+
             if i != 0 and i % 50 == 0:
                 print_sequence(data_train, outputs.cpu().detach().numpy()[0])
                 print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 50))

@@ -32,7 +32,7 @@ if __name__ == '__main__':
                           transform=transform, fix_length=18)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
-    encoder = Encoder(models.vgg16, pretrained=True)
+    encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                                hidden_size=hidden_size,
                                encoder=encoder,
                                vocab_size=vocab_size,
-                               init_hidden='last')
+                               init_hidden='bridge')
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
 

@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -30,7 +32,7 @@ if __name__ == '__main__':
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt',
                           transform=transform, fix_length=18)
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)

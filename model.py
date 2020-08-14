@@ -26,16 +26,14 @@ class Image2Caption(nn.Module):
 
     def forward(self, x: Tensor, y: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         x = self.encoder(x)
-
-        trg_embed = self.embeddings(y.long())
-        # unroll_steps = trg_input.size(1)
         outputs, hidden, att_probs, att_vectors = self.decoder(
-            trg_embed,
+            trg_embed=self.embeddings(y.long()),
             encoder_output=x,
-            encoder_hidden=torch.zeros((x.shape[0], self.encoder.output_size)).to(self.device),
+            encoder_hidden=x.mean(dim=1),
             src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
             unroll_steps=y.shape[1]
         )
+
         return outputs, hidden, att_probs, att_vectors
 
 

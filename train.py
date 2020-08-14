@@ -28,7 +28,6 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
-    output_size = 512  # output size for encoder = input size for decoder
     max_sequence_size = 5
     batch_size = 8
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -37,7 +36,7 @@ if __name__ == '__main__':
                           transform=transform, fix_length=18)
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)
 
-    encoder = Encoder(models.vgg16, output_size=output_size, pretrained=True)
+    encoder = Encoder(models.vgg16, pretrained=True)
     # summary(encoder, input_size=(3, 224, 224), device='cpu')
     vocab_size = len(data_train.corpus.vocab.itos)
 

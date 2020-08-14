@@ -40,18 +40,18 @@ class Image2Caption(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, base_arch: Callable, output_size, pretrained=True):
+    def __init__(self, base_arch: Callable, pretrained=True):
         super(Encoder, self).__init__()
         loaded_model = base_arch(pretrained)
         self.features = loaded_model.features[:-1]  # drop MaxPool2d-layer
         self.avgpool = nn.AdaptiveAvgPool2d((14, 14))  # allow input images of variable size (14×14×512 as in paper 4.3)
 
-        self.output_size = output_size
+        self.output_size = self.avgpool(self.features(torch.zeros(1, 3, 224, 224))).shape[1]
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.features(x)
         x = self.avgpool(x)  # 512×14×14
-        x = x.view(x.shape[0], 512, -1)  # 512×196
+        x = x.view(x.shape[0], x.shape[1], -1)  # 512×196
         x = x.permute(0, 2, 1)  # 196×512
         return x
 

@@ -141,6 +141,6 @@ if __name__ == '__main__':
                 tensorboard.writer.flush()
 
                 # Save model, if score got better
-                if last_validation_score < bleu_1 / len(dataloader_dev):
-                    last_validation_score = bleu_1 / len(dataloader_dev)
+                if last_validation_score < bleu_1:
+                    last_validation_score = bleu_1
                     torch.save(model.state_dict(), 'saved_models/{}.pth'.format(modelname))

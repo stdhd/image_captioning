@@ -110,6 +110,5 @@ if __name__ == '__main__':
                     tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
                     tensorboard.writer.flush()
 
-            #bleu()
             # TODO: Save model, if validation got better
             tensorboard.writer.flush()

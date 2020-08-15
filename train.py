@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import os
 
 import torch
@@ -12,9 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
-
-import metrics
-from metrics import bleu
+from nltk.translate.bleu_score import corpus_bleu
 
 from data import Flickr8k
 from model import Image2Caption, Encoder
@@ -27,6 +25,7 @@ if __name__ == '__main__':
     hidden_size = 512
     batch_size = 8
     fix_length = 18
+    modelname = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
@@ -58,7 +57,7 @@ if __name__ == '__main__':
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     last_validation_score = float('-inf')
 
-    for epoch in trange(2):  # loop over the dataset multiple times
+    for epoch in trange(100):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
@@ -80,8 +79,8 @@ if __name__ == '__main__':
             # print statistics
             running_loss += loss.item()
 
-            if i != 0 and i % 5 == 0:
-                training_loss = running_loss / 5
+            if i != 0 and i % 50 == 0:
+                training_loss = running_loss / 50
                 running_loss = 0.0
 
                 tensorboard.writer.add_scalars('loss', {"train_loss": training_loss}, epoch * len(dataloader_train) + i)
@@ -89,10 +88,10 @@ if __name__ == '__main__':
 
         with torch.no_grad():
             loss_sum = 0
-            sum_bleu_1 = 0
-            sum_bleu_2 = 0
-            sum_bleu_3 = 0
-            sum_bleu_4 = 0
+            bleu_1 = 0
+            bleu_2 = 0
+            bleu_3 = 0
+            bleu_4 = 0
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
@@ -104,35 +103,44 @@ if __name__ == '__main__':
                 token_ids = torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy()
                 label_ids = labels.cpu().detach().numpy()
 
-                for j in range(outputs.size(0)):
-                    bleu_hypo = ' '.join([data_dev.corpus.vocab.itos[id] for id in token_ids[j].tolist()])
-                    bleu_ref = [' '.join([data_dev.corpus.vocab.itos[id] for id in label_ids[j].tolist()])]
-                    sum_bleu_1 += metrics.bleu(bleu_hypo, bleu_ref, 1)
-                    sum_bleu_2 += metrics.bleu(bleu_hypo, bleu_ref, 2)
-                    sum_bleu_3 += metrics.bleu(bleu_hypo, bleu_ref, 3)
-                    sum_bleu_4 += metrics.bleu(bleu_hypo, bleu_ref, 4)
+                bleu_references = []
+                for j in range(label_ids.shape[0]):
+                    refs = label_ids[j].tolist()
+                    img_captions = [w for w in refs if w not in {1, 2, 3}]
+                    bleu_references.append([img_captions])
+
+                bleu_hypotheses = []
+                for j in range(label_ids.shape[0]):
+                    refs = token_ids[j].tolist()
+                    img_captions = [w for w in refs if w not in {1, 2, 3}]
+                    bleu_hypotheses.append(img_captions)
+
+                bleu_1 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(1, 0, 0, 0))
+                bleu_2 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 1, 0, 0))
+                bleu_3 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 1, 0))
+                bleu_4 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 0, 1))
 
                 log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels.contiguous().view(-1)
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
                 loss_sum += loss.item()
 
-            # Add bleu score to board
-            tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)},
-                                           (epoch + 1) * len(dataloader_train))
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-1": sum_bleu_1 / len(dataloader_dev)},
-                                           (epoch + 1) * len(dataloader_train))
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-2": sum_bleu_2 / len(dataloader_dev)},
-                                           (epoch + 1) * len(dataloader_train))
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": sum_bleu_3 / len(dataloader_dev)},
-                                           (epoch + 1) * len(dataloader_train))
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": sum_bleu_4 / len(dataloader_dev)},
-                                           (epoch + 1) * len(dataloader_train))
-            # Add predicted text to board
-            tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
-            tensorboard.writer.flush()
+                # Add bleu score to board
+                tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)},
+                                               (epoch + 1) * len(dataloader_train))
+                tensorboard.writer.add_scalars('bleu_validation', {"bleu-1": bleu_1},
+                                               (epoch + 1) * len(dataloader_train))
+                tensorboard.writer.add_scalars('bleu_validation', {"bleu-2": bleu_2},
+                                               (epoch + 1) * len(dataloader_train))
+                tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": bleu_3},
+                                               (epoch + 1) * len(dataloader_train))
+                tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": bleu_4},
+                                               (epoch + 1) * len(dataloader_train))
+                # Add predicted text to board
+                tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
+                tensorboard.writer.flush()
 
-            # Save model, if score got better
-            if last_validation_score < sum_bleu_1 / len(dataloader_dev):
-                last_validation_score = sum_bleu_1 / len(dataloader_dev)
-                torch.save(model.state_dict(), 'saved_models/{}.pth'.format(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))
+                # Save model, if score got better
+                if last_validation_score < bleu_1 / len(dataloader_dev):
+                    last_validation_score = bleu_1 / len(dataloader_dev)
+                    torch.save(model.state_dict(), 'saved_models/{}.pth'.format(modelname))

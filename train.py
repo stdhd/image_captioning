@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import torch
@@ -55,6 +56,7 @@ if __name__ == '__main__':
 
     criterion = nn.NLLLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    last_validation_score = float('-inf')
 
     for epoch in trange(2):  # loop over the dataset multiple times
         running_loss = 0.0
@@ -130,6 +132,7 @@ if __name__ == '__main__':
             tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
             tensorboard.writer.flush()
 
-
-            # TODO: Save model, if validation got better
-            tensorboard.writer.flush()
+            # Save model, if score got better
+            if last_validation_score < sum_bleu_1 / len(dataloader_dev):
+                last_validation_score = sum_bleu_1 / len(dataloader_dev)
+                torch.save(model.state_dict(), 'saved_models/{}.pth'.format(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))

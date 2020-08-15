@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
+from joeynmt.metrics import bleu
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision import models
@@ -71,29 +72,44 @@ if __name__ == '__main__':
 
             # print statistics
             running_loss += loss.item()
+            average_bleu = 0
 
-            if i != 0 and i % 200 == 0:
-                training_loss = running_loss / 200
+            if i != 0 and i % 5 == 0:
+                training_loss = running_loss / 5
                 running_loss = 0.0
 
                 tensorboard.writer.add_scalars('loss', {"train_loss": training_loss}, epoch * len(dataloader_train) + i)
                 tensorboard.writer.flush()
 
-        with torch.no_grad():
-            loss_sum = 0
-            for data in tqdm(dataloader_dev):
-                # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                with torch.no_grad():
+                    loss_sum = 0
+                    for data in tqdm(dataloader_dev):
+                        # get the inputs; data is a list of [inputs, labels]
+                        inputs, labels = data
+                        inputs = inputs.to(device)
+                        labels = labels.to(device)
 
-                # forward
-                outputs, hidden, _, _ = model(inputs, labels)
-                log_probs = F.log_softmax(outputs, dim=-1)
-                targets = labels.contiguous().view(-1)
-                loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
-                loss_sum += loss.item()
-            tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)}, (epoch + 1) * len(dataloader_train))
-            tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
-            # TODO: BLEU Score
+                        # forward
+                        outputs, hidden, _, _ = model(inputs, labels)
+                        token_ids = list(torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy())
+                        label_ids = labels.detach().numpy()
+
+                        for j in range(outputs.size(0)):
+                            bleu_hypo = ' '.join([data_dev.corpus.vocab.itos[id] for id in token_ids[j]])
+                            bleu_ref = [' '.join([data_dev.corpus.vocab.itos[label_id] for label_id in label_ids[j]])]
+                            average_bleu += bleu(bleu_hypo, bleu_ref)
+
+                        log_probs = F.log_softmax(outputs, dim=-1)
+                        targets = labels.contiguous().view(-1)
+                        loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+                        loss_sum += loss.item()
+                    tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)},
+                                                   (epoch + 1) * len(dataloader_train))
+                    tensorboard.writer.add_scalars('valid', {"bleu_validation": average_bleu / len(dataloader_dev)},
+                                                   (epoch + 1) * len(dataloader_train))
+                    tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
+                    tensorboard.writer.flush()
+
+            #bleu()
+            # TODO: Save model, if validation got better
             tensorboard.writer.flush()

@@ -63,7 +63,7 @@ if __name__ == '__main__':
         running_loss = 0.0
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+            inputs, labels, _ = data
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -96,7 +96,7 @@ if __name__ == '__main__':
             bleu_4 = 0
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
+                inputs, labels, image_names = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
@@ -106,10 +106,8 @@ if __name__ == '__main__':
                 label_ids = labels.cpu().detach().numpy()
 
                 bleu_references = []
-                for j in range(label_ids.shape[0]):
-                    refs = label_ids[j].tolist()
-                    img_captions = [w for w in refs if w not in {1, 2, 3}]
-                    bleu_references.append([img_captions])
+                for image_name in image_names:
+                    bleu_references.append(data_dev.get_all_references_for_image_name(image_name))  # TODO ignore id 1,2 and 3 ???
 
                 bleu_hypotheses = []
                 for j in range(label_ids.shape[0]):

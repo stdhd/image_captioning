@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 
 from PIL import Image
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
@@ -24,6 +25,7 @@ class Flickr8k(Dataset):
 
         self.idx2image = []
         self.idx2caption = []
+        self.image_name2idxs = defaultdict(list)
         self.all_captions = []  # Captions on ENTIRE dataset (TRAIN+DEV+TEST)
 
         # Get image file names for chosen TRAIN/DEV/TEST data
@@ -36,6 +38,7 @@ class Flickr8k(Dataset):
             if image_file_name[:-2] in valid_image_file_names:
                 self.idx2image.append(image_file_name[:-2])
                 self.idx2caption.append(caption.lower().split())
+                self.image_name2idxs[image_file_name[:-2]].append(len(self.idx2image) - 1)
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
         self.corpus.build_vocab(self.all_captions, max_size=max_vocab_size)  # Corpus containing possible tokens across TRAIN+DEV+TEST
@@ -51,7 +54,13 @@ class Flickr8k(Dataset):
 
         # Captions, for image
         caption = self.corpus.numericalize([self.idx2caption[index]]).squeeze()
-        return img, caption
+        return img, caption, image_name
+
+    def get_all_references_for_image_name(self, image_name: str):
+        references = []
+        for idx in self.image_name2idxs[image_name]:
+            references.append(self.corpus.numericalize([self.idx2caption[idx]]).squeeze())
+        return references
 
     def __len__(self):
         return len(self.idx2caption)

@@ -44,14 +44,14 @@ class Tensorboard:
 
     def add_images_with_ground_truth(self, dataset: Flickr8k):
         for image_idx in self.image_idxs:
-            img, caption = dataset[image_idx]
+            img, caption, _ = dataset[image_idx]
             self.writer.add_image(f'image-{image_idx}', normalize_inverse(img).cpu().detach().numpy())
             self.writer.add_text(f'image-{image_idx}', sequence_to_text(dataset, caption), 0)
         self.writer.flush()
 
     def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption):
         for image_idx in self.image_idxs:
-            img, caption = dataset[image_idx]
+            img, caption, _ = dataset[image_idx]
             img = img.unsqueeze(0).to(self.device)
             caption = caption.unsqueeze(0).to(self.device)
             outputs, _, _, _ = model(img, caption)

@@ -59,7 +59,7 @@ class Flickr8k(Dataset):
     def get_all_references_for_image_name(self, image_name: str):
         references = []
         for idx in self.image_name2idxs[image_name]:
-            references.append(self.corpus.numericalize([self.idx2caption[idx]]).squeeze())
+            references.append(self.corpus.numericalize([self.idx2caption[idx]]).squeeze().detach().numpy().tolist())
         return references
 
     def __len__(self):

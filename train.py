@@ -117,30 +117,26 @@ if __name__ == '__main__':
                     img_captions = [w for w in refs if w not in {1, 2, 3}]
                     bleu_hypotheses.append(img_captions)
 
-                bleu_1 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(1, 0, 0, 0))
-                bleu_2 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 1, 0, 0))
-                bleu_3 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 1, 0))
-                bleu_4 = corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 0, 1))
+                bleu_1 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(1, 0, 0, 0))
+                bleu_2 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 1, 0, 0))
+                bleu_3 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 1, 0))
+                bleu_4 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 0, 1))
 
                 log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels.contiguous().view(-1)
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
                 loss_sum += loss.item()
 
-                # Add bleu score to board
-                tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)},
-                                               (epoch + 1) * len(dataloader_train))
-                tensorboard.writer.add_scalars('bleu_validation', {"bleu-1": bleu_1},
-                                               (epoch + 1) * len(dataloader_train))
-                tensorboard.writer.add_scalars('bleu_validation', {"bleu-2": bleu_2},
-                                               (epoch + 1) * len(dataloader_train))
-                tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": bleu_3},
-                                               (epoch + 1) * len(dataloader_train))
-                tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": bleu_4},
-                                               (epoch + 1) * len(dataloader_train))
-                # Add predicted text to board
-                tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
-                tensorboard.writer.flush()
+            global_step = (epoch + 1) * len(dataloader_train) - 1
+            # Add bleu score to board
+            tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)}, global_step)
+            tensorboard.writer.add_scalars('bleu_validation', {"bleu-1": bleu_1 / len(dataloader_dev)}, global_step)
+            tensorboard.writer.add_scalars('bleu_validation', {"bleu-2": bleu_2 / len(dataloader_dev)}, global_step)
+            tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": bleu_3 / len(dataloader_dev)}, global_step)
+            tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": bleu_4 / len(dataloader_dev)}, global_step)
+            # Add predicted text to board
+            tensorboard.add_predicted_text(global_step, data_dev, model)
+            tensorboard.writer.flush()
 
             # Save model, if score got better
             compared_score = bleu_1 / len(dataloader_dev)

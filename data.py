@@ -8,7 +8,7 @@ from torchtext import data
 
 class Flickr8k(Dataset):
 
-    def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None):
+    def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None, max_vocab_size: int = None):
         """
         Flickr Dataset class to use with dataloader
         :param data_path: dataset directory
@@ -16,6 +16,7 @@ class Flickr8k(Dataset):
         :param ann_file_name: file containing annotation tokens
         :param transform: torchvision transforms object to be applied on the images
         :param fix_length: pads caption fix_length if provided, otherwise pads to the length of the longest example in the batch
+        :param max_vocab_size: the maximum size of the vocabulary, or None for no maximum
         """
         self.root = os.path.expanduser(data_path)
         self.ann_file = os.path.expanduser(ann_file_name)
@@ -37,7 +38,7 @@ class Flickr8k(Dataset):
                 self.idx2caption.append(caption.lower().split())
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
-        self.corpus.build_vocab(self.all_captions)  # Corpus containing possible tokens across TRAIN+DEV+TEST
+        self.corpus.build_vocab(self.all_captions, max_size=max_vocab_size)  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
 
     def __getitem__(self, index):

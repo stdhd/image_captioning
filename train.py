@@ -27,7 +27,7 @@ if __name__ == '__main__':
     hidden_size = 512
     batch_size = 8
     fix_length = 18
-    modelname = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    model_name = f'vgg16_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
 
-    tensorboard = Tensorboard(device=device)
+    tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
 
     criterion = nn.NLLLoss()
@@ -142,7 +142,13 @@ if __name__ == '__main__':
                 tensorboard.add_predicted_text((epoch + 1) * len(dataloader_train), data_dev, model)
                 tensorboard.writer.flush()
 
-                # Save model, if score got better
-                if last_validation_score < bleu_1:
-                    last_validation_score = bleu_1
-                    torch.save(model.state_dict(), 'saved_models/{}.pth'.format(modelname))
+            # Save model, if score got better
+            compared_score = bleu_1 / len(dataloader_dev)
+            if last_validation_score < compared_score:
+                last_validation_score = compared_score
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss_sum / len(dataloader_dev),
+                }, f'saved_models/{model_name}-bleu_1-{last_validation_score}.pth')

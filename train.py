@@ -20,6 +20,8 @@ from visualize import Tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+PRINT_TRAINING_LOSS_EVERY = 200
+
 if __name__ == '__main__':
     embed_size = 128
     hidden_size = 512
@@ -79,8 +81,8 @@ if __name__ == '__main__':
             # print statistics
             running_loss += loss.item()
 
-            if i != 0 and i % 50 == 0:
-                training_loss = running_loss / 50
+            if i != 0 and i % PRINT_TRAINING_LOSS_EVERY == 0:
+                training_loss = running_loss / PRINT_TRAINING_LOSS_EVERY
                 running_loss = 0.0
 
                 tensorboard.writer.add_scalars('loss', {"train_loss": training_loss}, epoch * len(dataloader_train) + i)

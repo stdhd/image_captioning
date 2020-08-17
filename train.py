@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 token_ids = torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy()
                 label_ids = labels.cpu().detach().numpy()
 
-                prediction = model.predict(inputs)
+                prediction, _ = model.predict(inputs, fix_length)
                 # TODO use prediction
 
                 bleu_references = []

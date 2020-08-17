@@ -2,12 +2,14 @@ from typing import Callable
 
 import torch
 import torch.nn as nn
-from joeynmt.search import greedy
+from joeynmt.decoders import Decoder
+from joeynmt.embeddings import Embeddings
+from joeynmt.search import greedy, beam_search
 from torch import Tensor
 
 
 class Image2Caption(nn.Module):
-    def __init__(self, encoder: nn.Module, decoder: nn.Module, embeddings: nn.Module, device: str, freeze_encoder: bool = True):
+    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True):
         super(Image2Caption, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
@@ -30,19 +32,31 @@ class Image2Caption(nn.Module):
 
         return outputs, hidden, att_probs, att_vectors
 
-    def predict(self, x: Tensor, beam_size: int = 1):
+    def predict(self, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
         x = self.encoder(x)
-        output, attention_scores = greedy(
-            encoder_hidden=x.mean(dim=1),
-            encoder_output=x,
-            eos_index=3,
-            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
-            embed=self.embeddings,
-            bos_index=2,
-            decoder=self.decoder,
-            max_output_length=18)
 
-        return output
+        if beam_size < 2:
+            output, attention_scores = greedy(
+                encoder_output=x, encoder_hidden=x.mean(dim=1),
+                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+                bos_index=2, eos_index=3,
+                embed=self.embeddings,
+                decoder=self.decoder,
+                max_output_length=max_output_length
+            )
+        else:
+            output, attention_scores = beam_search(
+                size=beam_size,
+                encoder_output=x, encoder_hidden=x.mean(dim=1),
+                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+                bos_index=2, eos_index=3, pad_index=self.pad_index,
+                embed=self.embeddings,
+                decoder=self.decoder,
+                alpha=beam_alpha,
+                max_output_length=max_output_length
+            )
+
+        return output, attention_scores
 
 
 class Encoder(nn.Module):

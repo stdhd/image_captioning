@@ -26,7 +26,7 @@ if __name__ == '__main__':
     hidden_size = 512
     batch_size = 8
     fix_length = 18
-    model_name = f'vgg16_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    model_name = f'mobilenet_v2_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
@@ -105,22 +105,18 @@ if __name__ == '__main__':
                 label_ids = labels.cpu().detach().numpy()
 
                 prediction, _ = model.predict(inputs, fix_length)
-                # TODO use prediction
+                decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
 
-                bleu_references = []
+                decoded_references = []
                 for image_name in image_names:
-                    bleu_references.append(data_dev.get_all_references_for_image_name(image_name))  # TODO ignore id 1,2 and 3 ???
+                    decoded_references.append(
+                        data_dev.corpus.vocab.arrays_to_sentences(data_dev.get_all_references_for_image_name(image_name))
+                    )
 
-                bleu_hypotheses = []
-                for j in range(label_ids.shape[0]):
-                    refs = token_ids[j].tolist()
-                    img_captions = [w for w in refs if w not in {1, 2, 3}]
-                    bleu_hypotheses.append(img_captions)
-
-                bleu_1 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(1, 0, 0, 0))
-                bleu_2 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 1, 0, 0))
-                bleu_3 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 1, 0))
-                bleu_4 += corpus_bleu(bleu_references, bleu_hypotheses, weights=(0, 0, 0, 1))
+                bleu_1 += corpus_bleu(decoded_references, decoded_prediction, weights=(1, 0, 0, 0))
+                bleu_2 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 1, 0, 0))
+                bleu_3 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
+                bleu_4 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
 
                 log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels.contiguous().view(-1)
@@ -135,7 +131,7 @@ if __name__ == '__main__':
             tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": bleu_3 / len(dataloader_dev)}, global_step)
             tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": bleu_4 / len(dataloader_dev)}, global_step)
             # Add predicted text to board
-            tensorboard.add_predicted_text(global_step, data_dev, model)
+            tensorboard.add_predicted_text(global_step, data_dev, model, fix_length)
             tensorboard.writer.flush()
 
             # Save model, if score got better

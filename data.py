@@ -1,8 +1,10 @@
+import itertools
 import os
 from collections import defaultdict
 
 from PIL import Image
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
+from joeynmt.vocabulary import Vocabulary
 from torch.utils.data import Dataset
 from torchtext import data
 
@@ -41,7 +43,7 @@ class Flickr8k(Dataset):
                 self.image_name2idxs[image_file_name[:-2]].append(len(self.idx2image) - 1)
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
-        self.corpus.build_vocab(self.all_captions, max_size=max_vocab_size)  # Corpus containing possible tokens across TRAIN+DEV+TEST
+        self.corpus.vocab = Vocabulary(tokens=sorted(list(set(itertools.chain(*self.all_captions)))))  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
 
     def __getitem__(self, index):

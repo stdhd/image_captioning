@@ -1,18 +1,17 @@
-from datetime import datetime
 import os
+from datetime import datetime
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
-from joeynmt.metrics import bleu
+from nltk.translate.bleu_score import corpus_bleu
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
-from nltk.translate.bleu_score import corpus_bleu
 
 from data import Flickr8k
 from model import Image2Caption, Encoder
@@ -47,7 +46,7 @@ if __name__ == '__main__':
                                encoder=encoder,
                                vocab_size=vocab_size,
                                init_hidden='bridge',
-                               attention='bahdanau' # or: 'luong'
+                               attention='bahdanau'  # or: 'luong'
                                )
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
@@ -104,6 +103,9 @@ if __name__ == '__main__':
                 outputs, hidden, _, _ = model(inputs, labels)
                 token_ids = torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy()
                 label_ids = labels.cpu().detach().numpy()
+
+                prediction = model.predict(inputs)
+                # TODO use prediction
 
                 bleu_references = []
                 for image_name in image_names:

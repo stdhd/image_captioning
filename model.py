@@ -2,6 +2,7 @@ from typing import Callable
 
 import torch
 import torch.nn as nn
+from joeynmt.search import greedy
 from torch import Tensor
 
 
@@ -28,6 +29,20 @@ class Image2Caption(nn.Module):
         )
 
         return outputs, hidden, att_probs, att_vectors
+
+    def predict(self, x: Tensor, beam_size: int = 1):
+        x = self.encoder(x)
+        output, attention_scores = greedy(
+            encoder_hidden=x.mean(dim=1),
+            encoder_output=x,
+            eos_index=3,
+            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+            embed=self.embeddings,
+            bos_index=2,
+            decoder=self.decoder,
+            max_output_length=18)
+
+        return output
 
 
 class Encoder(nn.Module):

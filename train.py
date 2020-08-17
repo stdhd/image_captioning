@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 token_ids = torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy()
                 label_ids = labels.cpu().detach().numpy()
 
-                prediction, _ = model.predict(inputs, fix_length)
+                prediction, _ = model.predict(data_dev, inputs, fix_length)
                 decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
 
                 decoded_references = []

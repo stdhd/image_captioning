@@ -5,7 +5,10 @@ import torch.nn as nn
 from joeynmt.decoders import Decoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.search import greedy, beam_search
+from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
 from torch import Tensor
+
+from data import Flickr8k
 
 
 class Image2Caption(nn.Module):
@@ -32,14 +35,14 @@ class Image2Caption(nn.Module):
 
         return outputs, hidden, att_probs, att_vectors
 
-    def predict(self, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
+    def predict(self, data: Flickr8k, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
         x = self.encoder(x)
 
         if beam_size < 2:
             output, attention_scores = greedy(
                 encoder_output=x, encoder_hidden=x.mean(dim=1),
                 src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
-                bos_index=2, eos_index=3,
+                bos_index=data.corpus.vocab.stoi[BOS_TOKEN], eos_index=data.corpus.vocab.stoi[EOS_TOKEN],
                 embed=self.embeddings,
                 decoder=self.decoder,
                 max_output_length=max_output_length

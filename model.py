@@ -52,7 +52,7 @@ class Image2Caption(nn.Module):
                 size=beam_size,
                 encoder_output=x, encoder_hidden=x.mean(dim=1),
                 src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
-                bos_index=2, eos_index=3, pad_index=1,
+                bos_index=data.corpus.vocab.stoi[BOS_TOKEN], eos_index=data.corpus.vocab.stoi[EOS_TOKEN], pad_index=data.corpus.vocab.stoi[PAD_TOKEN],
                 embed=self.embeddings,
                 decoder=self.decoder,
                 alpha=beam_alpha,

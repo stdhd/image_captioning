@@ -126,10 +126,10 @@ if __name__ == '__main__':
             global_step = (epoch + 1) * len(dataloader_train) - 1
             # Add bleu score to board
             tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)}, global_step)
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-1": bleu_1 / len(dataloader_dev)}, global_step)
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-2": bleu_2 / len(dataloader_dev)}, global_step)
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-3": bleu_3 / len(dataloader_dev)}, global_step)
-            tensorboard.writer.add_scalars('bleu_validation', {"bleu-4": bleu_4 / len(dataloader_dev)}, global_step)
+            tensorboard.writer.add_scalar('BLEU/BLEU-1', bleu_1 / len(dataloader_dev), global_step)
+            tensorboard.writer.add_scalar('BLEU/BLEU-2', bleu_2 / len(dataloader_dev), global_step)
+            tensorboard.writer.add_scalar('BLEU/BLEU-3', bleu_3 / len(dataloader_dev), global_step)
+            tensorboard.writer.add_scalar('BLEU/BLEU-4', bleu_4 / len(dataloader_dev), global_step)
             # Add predicted text to board
             tensorboard.add_predicted_text(global_step, data_dev, model, fix_length)
             tensorboard.writer.flush()

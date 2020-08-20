@@ -71,8 +71,8 @@ if __name__ == '__main__':
 
             # forward + backward + optimize
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
-            log_probs = F.log_softmax(outputs, dim=-1)
-            targets = labels.contiguous().view(-1)
+            log_probs = F.log_softmax(outputs, dim=-1)[:, :-1]
+            targets = labels[:, 1:].contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
             loss.backward()
             optimizer.step()
@@ -100,9 +100,11 @@ if __name__ == '__main__':
                 labels = labels.to(device)
 
                 # forward
-                outputs, hidden, _, _ = model(inputs, labels)
-                token_ids = torch.argmax(outputs.squeeze(0), dim=-1).cpu().detach().numpy()
-                label_ids = labels.cpu().detach().numpy()
+                outputs, _, _, _ = model(inputs, labels)
+                log_probs = F.log_softmax(outputs, dim=-1)[:, :-1]
+                targets = labels[:, 1:].contiguous().view(-1)
+                loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+                loss_sum += loss.item()
 
                 prediction, _ = model.predict(data_dev, inputs, fix_length)
                 decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
@@ -117,11 +119,6 @@ if __name__ == '__main__':
                 bleu_2 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 1, 0, 0))
                 bleu_3 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
                 bleu_4 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
-
-                log_probs = F.log_softmax(outputs, dim=-1)
-                targets = labels.contiguous().view(-1)
-                loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
-                loss_sum += loss.item()
 
             global_step = (epoch + 1) * len(dataloader_train) - 1
             # Add bleu score to board

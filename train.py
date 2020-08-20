@@ -4,8 +4,10 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from joeynmt.constants import PAD_TOKEN
 from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
+from joeynmt.loss import XentLoss
 from nltk.translate.bleu_score import corpus_bleu
 from torch import optim
 from torch.utils.data import DataLoader
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
 
-    criterion = nn.NLLLoss()
+    criterion = XentLoss(data_train.corpus.vocab.stoi[PAD_TOKEN])
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     last_validation_score = float('-inf')
 

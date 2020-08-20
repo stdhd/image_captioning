@@ -60,7 +60,7 @@ if __name__ == '__main__':
     tensorboard.add_images_with_ground_truth(data_dev)
 
     criterion = XentLoss(data_train.corpus.vocab.stoi[PAD_TOKEN])
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0)
     last_validation_score = float('-inf')
 
     for epoch in trange(100):  # loop over the dataset multiple times

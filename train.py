@@ -48,10 +48,13 @@ if __name__ == '__main__':
                                encoder=encoder,
                                vocab_size=vocab_size,
                                init_hidden='bridge',
-                               attention='bahdanau'  # or: 'luong'
+                               attention='bahdanau',  # or: 'luong'
+                               hidden_dropout=0.2,
+                               emb_dropout=0.2
                                )
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
+    model.train()
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
@@ -90,6 +93,7 @@ if __name__ == '__main__':
                 tensorboard.writer.flush()
 
         with torch.no_grad():
+            model.eval()
             loss_sum = 0
             bleu_1 = 0
             bleu_2 = 0
@@ -143,3 +147,4 @@ if __name__ == '__main__':
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss_sum / len(dataloader_dev),
                 }, f'saved_models/{model_name}-bleu_1-{last_validation_score}.pth')
+        model.train()

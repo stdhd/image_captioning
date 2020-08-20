@@ -49,7 +49,7 @@ class Tensorboard:
         for image_idx in self.image_idxs:
             img, _, _ = dataset[image_idx]
             img = img.unsqueeze(0).to(self.device)
-            prediction, _ = model.predict(img, max_output_length)
+            prediction, _ = model.predict(dataset, img, max_output_length)
             self.writer.add_text(f'image-{image_idx}',
                                  '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(prediction)[0]), global_step)
         self.writer.flush()

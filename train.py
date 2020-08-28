@@ -24,7 +24,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 PRINT_TRAINING_LOSS_EVERY = 200
 
 if __name__ == '__main__':
-    embed_size = 128
+    embed_size = 512
     hidden_size = 512
     batch_size = 8
     fix_length = 18

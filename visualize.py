@@ -41,8 +41,7 @@ class Tensorboard:
         for image_idx in self.image_idxs:
             img, caption, _ = dataset[image_idx]
             self.writer.add_image(f'image-{image_idx}', normalize_inverse(img).cpu().detach().numpy())
-            self.writer.add_text(f'image-{image_idx}',
-                                 '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(caption.unsqueeze(0))[0]), 0)
+            self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(caption.unsqueeze(0))[0][1:]), 0)
         self.writer.flush()
 
     def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int):

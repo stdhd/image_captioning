@@ -2,10 +2,8 @@ import os
 from datetime import datetime
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from joeynmt.constants import PAD_TOKEN
-from joeynmt.decoders import RecurrentDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.loss import XentLoss
 from nltk.translate.bleu_score import corpus_bleu
@@ -15,6 +13,7 @@ from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
 
+from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
 from model import Image2Caption, Encoder
 from visualize import Tensorboard
@@ -42,19 +41,19 @@ if __name__ == '__main__':
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
-    decoder = RecurrentDecoder(rnn_type="lstm",
-                               emb_size=embed_size,
-                               hidden_size=hidden_size,
-                               encoder=encoder,
-                               vocab_size=vocab_size,
-                               init_hidden='bridge',
-                               attention='bahdanau',  # or: 'luong'
-                               hidden_dropout=0.2,
-                               emb_dropout=0.2
-                               )
+    decoder = CustomRecurrentDecoder(
+        rnn_type="lstm",
+        emb_size=embed_size,
+        hidden_size=hidden_size,
+        encoder=encoder,
+        vocab_size=vocab_size,
+        init_hidden='bridge',
+        attention='bahdanau',  # or: 'luong'
+        hidden_dropout=0.2,
+        emb_dropout=0.2
+    )
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
-    model.train()
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
@@ -64,6 +63,8 @@ if __name__ == '__main__':
     last_validation_score = float('-inf')
 
     for epoch in trange(100):  # loop over the dataset multiple times
+        model.train()
+
         running_loss = 0.0
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
@@ -76,7 +77,7 @@ if __name__ == '__main__':
 
             # forward + backward + optimize
             outputs, hidden, att_probs, att_vectors = model(inputs, labels)
-            log_probs = F.log_softmax(outputs, dim=-1)[:, :-1]
+            log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels[:, 1:].contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
             loss.backward()
@@ -94,6 +95,7 @@ if __name__ == '__main__':
 
         with torch.no_grad():
             model.eval()
+
             loss_sum = 0
             bleu_1 = 0
             bleu_2 = 0
@@ -107,8 +109,8 @@ if __name__ == '__main__':
 
                 # forward
                 outputs, _, _, _ = model(inputs, labels)
-                log_probs = F.log_softmax(outputs, dim=-1)[:, :-1]
-                targets = labels[:, 1:].contiguous().view(-1)
+                log_probs = F.log_softmax(outputs, dim=-1)
+                targets = labels[:, 1:].contiguous().view(-1)  # shifted by one because of BOS
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
                 loss_sum += loss.item()
 
@@ -147,4 +149,3 @@ if __name__ == '__main__':
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss_sum / len(dataloader_dev),
                 }, f'saved_models/{model_name}-bleu_1-{last_validation_score}.pth')
-        model.train()

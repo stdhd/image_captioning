@@ -30,7 +30,7 @@ class Image2Caption(nn.Module):
             encoder_output=x,
             encoder_hidden=x.mean(dim=1),
             src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
-            unroll_steps=y.shape[1]
+            unroll_steps=y.shape[1] - 1
         )
 
         return outputs, hidden, att_probs, att_vectors

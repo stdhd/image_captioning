@@ -15,6 +15,7 @@ from tqdm import tqdm, trange
 
 from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
+from equal_sampler import EqualBatchSampler
 from model import Image2Caption, Encoder
 from visualize import Tensorboard
 
@@ -26,16 +27,15 @@ if __name__ == '__main__':
     embed_size = 512
     hidden_size = 512
     batch_size = 8
-    fix_length = 18
     model_name = f'mobilenet_v2_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
-    data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, fix_length=fix_length, max_vocab_size=10_000)
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
+    data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
+    dataloader_train = DataLoader(data_train, num_workers=os.cpu_count(), batch_sampler=EqualBatchSampler(batch_size, True, data_train))  # set num_workers=0 for debugging
 
-    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, fix_length=fix_length, max_vocab_size=10_000)
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())
+    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count()) #os.cpu_count()
 
     encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
                 loss_sum += loss.item()
 
-                prediction, _ = model.predict(data_dev, inputs, fix_length)
+                prediction, _ = model.predict(data_dev, inputs, data_dev.max_length)
                 decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
 
                 decoded_references = []
@@ -136,7 +136,7 @@ if __name__ == '__main__':
             tensorboard.writer.add_scalar('BLEU/BLEU-3', bleu_3 / len(dataloader_dev), global_step)
             tensorboard.writer.add_scalar('BLEU/BLEU-4', bleu_4 / len(dataloader_dev), global_step)
             # Add predicted text to board
-            tensorboard.add_predicted_text(global_step, data_dev, model, fix_length)
+            tensorboard.add_predicted_text(global_step, data_dev, model, data_dev.max_length)
             tensorboard.writer.flush()
 
             # Save model, if score got better

@@ -27,24 +27,34 @@ class Flickr8k(Dataset):
 
         self.idx2image = []
         self.idx2caption = []
+        self.idx2caption_no_padding = []
         self.image_name2idxs = defaultdict(list)
         self.all_captions = []  # Captions on ENTIRE dataset (TRAIN+DEV+TEST)
+        self.lengths = dict()
 
         # Get image file names for chosen TRAIN/DEV/TEST data
         valid_image_file_names = set([line.rstrip() for line in open(split_file_name, 'r')])
         annotations = [line.rstrip() for line in open(ann_file_name, 'r')]
 
+        valid_counter = 0
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
             self.all_captions.append(caption.lower().split())
             if image_file_name[:-2] in valid_image_file_names:
+                if len(caption.split()) not in self.lengths:
+                    self.lengths[len(caption.split())] = [valid_counter]
+                else:
+                    self.lengths[len(caption.split())].append(valid_counter)
+                self.idx2caption_no_padding.append(caption.lower().split())
                 self.idx2image.append(image_file_name[:-2])
                 self.idx2caption.append(caption.lower().split())
                 self.image_name2idxs[image_file_name[:-2]].append(len(self.idx2image) - 1)
+                valid_counter += 1
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
         self.corpus.vocab = Vocabulary(tokens=sorted(list(set(itertools.chain(*self.all_captions)))))  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
+        self.max_length = max(list(self.lengths.keys()))
 
     def __getitem__(self, index):
         image_name = self.idx2image[index]
@@ -66,3 +76,4 @@ class Flickr8k(Dataset):
 
     def __len__(self):
         return len(self.idx2caption)
+

@@ -17,6 +17,6 @@ class CustomRecurrentDecoder(RecurrentDecoder):
 
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
         hidden_h = torch.tanh(self.bridge_layer(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
-        hidden_c = torch.tanh(self.bridge_layer(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
+        #hidden_c = torch.tanh(self.bridge_layer(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
 
-        return hidden_h, hidden_c
+        return hidden_h, hidden_h

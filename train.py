@@ -5,9 +5,8 @@ import torch
 import torch.nn.functional as F
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
-from joeynmt.loss import XentLoss
 from nltk.translate.bleu_score import corpus_bleu
-from torch import optim
+from torch import optim, nn
 from torch.utils.data import DataLoader
 from torchvision import models
 from torchvision import transforms as T
@@ -21,12 +20,10 @@ from visualize import Tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-PRINT_TRAINING_LOSS_EVERY = 200
-
 if __name__ == '__main__':
     embed_size = 512
     hidden_size = 512
-    batch_size = 8
+    batch_size = 16
     model_name = f'mobilenet_v2_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -35,7 +32,7 @@ if __name__ == '__main__':
     dataloader_train = DataLoader(data_train, num_workers=os.cpu_count(), batch_sampler=EqualBatchSampler(batch_size, True, data_train))  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count()) #os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
     encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
@@ -86,12 +83,8 @@ if __name__ == '__main__':
             # print statistics
             running_loss += loss.item()
 
-            if i != 0 and i % PRINT_TRAINING_LOSS_EVERY == 0:
-                training_loss = running_loss / PRINT_TRAINING_LOSS_EVERY
-                running_loss = 0.0
-
-                tensorboard.writer.add_scalars('loss', {"train_loss": training_loss}, epoch * len(dataloader_train) + i)
-                tensorboard.writer.flush()
+        tensorboard.writer.add_scalars('loss', {"train_loss": running_loss / len(dataloader_train)}, epoch)
+        tensorboard.writer.flush()
 
         with torch.no_grad():
             model.eval()
@@ -128,7 +121,7 @@ if __name__ == '__main__':
                 bleu_3 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
                 bleu_4 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
 
-            global_step = (epoch + 1) * len(dataloader_train) - 1
+            global_step = epoch
             # Add bleu score to board
             tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)}, global_step)
             tensorboard.writer.add_scalar('BLEU/BLEU-1', bleu_1 / len(dataloader_dev), global_step)

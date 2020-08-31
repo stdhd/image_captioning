@@ -17,10 +17,17 @@ class EqualBatchSampler(Sampler):
 
     def __iter__(self):
         batch = []
+        used = []
         length_choice = len(random.choice(self.data_source.idx2caption_no_padding))
 
         for i in range(len(self.data_source)):
-            batch.append(random.choice(self.data_source.lengths[length_choice]))
+            suitable_captions = list(set(self.data_source.lengths[length_choice]) - set(used))
+            if len(suitable_captions) == 0:
+                caption_choice = random.choice(self.data_source.lengths[length_choice])
+            else:
+                caption_choice = random.choice(suitable_captions)
+            batch.append(caption_choice)
+            used.append(caption_choice)
             if len(batch) == self.batch_size:
                 yield batch
                 batch = []

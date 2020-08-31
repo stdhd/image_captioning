@@ -73,7 +73,11 @@ if __name__ == '__main__':
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs, hidden, att_probs, att_vectors = model(inputs, labels)
+            outputs, hidden, att_probs, att_vectors = model(inputs, labels,
+                                                            scheduled_sampling=True,
+                                                            batch_no=epoch*len(dataloader_train) + i,
+                                                            k=100,
+                                                            embeddings=embeddings)
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels[:, 1:].contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())

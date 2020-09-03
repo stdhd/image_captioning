@@ -94,10 +94,10 @@ if __name__ == '__main__':
             model.eval()
 
             loss_sum = 0
-            bleu_1 = 0
-            bleu_2 = 0
-            bleu_3 = 0
-            bleu_4 = 0
+            bleu_1 = [0, 0, 0, 0, 0]
+            bleu_2 = [0, 0, 0, 0, 0]
+            bleu_3 = [0, 0, 0, 0, 0]
+            bleu_4 = [0, 0, 0, 0, 0]
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
@@ -111,33 +111,34 @@ if __name__ == '__main__':
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
                 loss_sum += loss.item()
 
-                prediction, _ = model.predict(data_dev, inputs, data_dev.max_length)
-                decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
+                for beam_size in range(1, len(bleu_1) + 1):
+                    prediction, _ = model.predict(data_dev, inputs, data_dev.max_length, beam_size)
+                    decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
 
-                decoded_references = []
-                for image_name in image_names:
-                    decoded_references.append(
-                        data_dev.corpus.vocab.arrays_to_sentences(data_dev.get_all_references_for_image_name(image_name))
-                    )
+                    decoded_references = []
+                    for image_name in image_names:
+                        decoded_references.append(data_dev.corpus.vocab.arrays_to_sentences(data_dev.get_all_references_for_image_name(image_name)))
 
-                bleu_1 += corpus_bleu(decoded_references, decoded_prediction, weights=(1, 0, 0, 0))
-                bleu_2 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 1, 0, 0))
-                bleu_3 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
-                bleu_4 += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
+                    idx = beam_size - 1
+                    bleu_1[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(1, 0, 0, 0))
+                    bleu_2[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 1, 0, 0))
+                    bleu_3[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
+                    bleu_4[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
 
             global_step = epoch
             # Add bleu score to board
             tensorboard.writer.add_scalars('loss', {"dev_loss": loss_sum / len(dataloader_dev)}, global_step)
-            tensorboard.writer.add_scalar('BLEU/BLEU-1', bleu_1 / len(dataloader_dev), global_step)
-            tensorboard.writer.add_scalar('BLEU/BLEU-2', bleu_2 / len(dataloader_dev), global_step)
-            tensorboard.writer.add_scalar('BLEU/BLEU-3', bleu_3 / len(dataloader_dev), global_step)
-            tensorboard.writer.add_scalar('BLEU/BLEU-4', bleu_4 / len(dataloader_dev), global_step)
+            for idx in range(len(bleu_1)):
+                tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-1', bleu_1[idx] / len(dataloader_dev), global_step)
+                tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-2', bleu_2[idx] / len(dataloader_dev), global_step)
+                tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-3', bleu_3[idx] / len(dataloader_dev), global_step)
+                tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-4', bleu_4[idx] / len(dataloader_dev), global_step)
             # Add predicted text to board
             tensorboard.add_predicted_text(global_step, data_dev, model, data_dev.max_length)
             tensorboard.writer.flush()
 
             # Save model, if score got better
-            compared_score = bleu_1 / len(dataloader_dev)
+            compared_score = bleu_1[0] / len(dataloader_dev)
             if last_validation_score < compared_score:
                 last_validation_score = compared_score
                 torch.save({

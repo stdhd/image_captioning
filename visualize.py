@@ -44,11 +44,11 @@ class Tensorboard:
             self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(caption.unsqueeze(0))[0][1:]), 0)
         self.writer.flush()
 
-    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int):
+    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
         for image_idx in self.image_idxs:
             img, _, _ = dataset[image_idx]
             img = img.unsqueeze(0).to(self.device)
-            prediction, _ = model.predict(dataset, img, max_output_length)
+            prediction, _ = model.predict(dataset, img, max_output_length, beam_size, beam_alpha)
             self.writer.add_text(f'image-{image_idx}',
                                  '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(prediction)[0]), global_step)
         self.writer.flush()

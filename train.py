@@ -23,16 +23,16 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if __name__ == '__main__':
     embed_size = 512
     hidden_size = 512
-    batch_size = 16
+    batch_size = 1
     model_name = f'mobilenet_v2_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
-    dataloader_train = DataLoader(data_train, num_workers=os.cpu_count(), batch_sampler=EqualBatchSampler(batch_size, True, data_train))  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, num_workers=0, batch_sampler=EqualBatchSampler(batch_size, True, data_train))  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
 
     encoder = Encoder(models.mobilenet_v2, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)

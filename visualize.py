@@ -32,16 +32,16 @@ normalize_inverse = NormalizeInverse(mean=[0.485, 0.456, 0.406], std=[0.229, 0.2
 
 
 class Tensorboard:
-    def __init__(self, log_dir: str = f'runs/image_captioning_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}', image_idxs=[42, 1337], device: str = 'cpu'):
+    def __init__(self, log_dir: str = f'runs/image_captioning_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}', image_idxs=[7, 42, 128, 512, 1337], device: str = 'cpu'):
         self.writer = SummaryWriter(log_dir)
         self.image_idxs = image_idxs
         self.device = device
 
     def add_images_with_ground_truth(self, dataset: Flickr8k):
         for image_idx in self.image_idxs:
-            img, caption, _ = dataset[image_idx]
+            img, caption, image_name = dataset[image_idx]
             self.writer.add_image(f'image-{image_idx}', normalize_inverse(img).cpu().detach().numpy())
-            self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(dataset.corpus.vocab.arrays_to_sentences(caption.unsqueeze(0))[0][1:]), 0)
+            self.writer.add_text(f'image-{image_idx}', '    ' + ' | '.join([' '.join(sentence) for sentence in dataset.corpus.vocab.arrays_to_sentences(dataset.get_all_references_for_image_name(image_name))]), -1)
         self.writer.flush()
 
     def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):

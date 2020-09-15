@@ -5,9 +5,9 @@ import torch
 import torch.nn.functional as F
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
-from nltk.translate.bleu_score import corpus_bleu
 from torch import optim, nn
 from torch.utils.data import DataLoader
+from torchtext.data import bleu_score
 from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
@@ -120,10 +120,10 @@ if __name__ == '__main__':
                         decoded_references.append(data_dev.corpus.vocab.arrays_to_sentences(data_dev.get_all_references_for_image_name(image_name)))
 
                     idx = beam_size - 1
-                    bleu_1[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(1, 0, 0, 0))
-                    bleu_2[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 1, 0, 0))
-                    bleu_3[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 1, 0))
-                    bleu_4[idx] += corpus_bleu(decoded_references, decoded_prediction, weights=(0, 0, 0, 1))
+                    bleu_1[idx] += bleu_score(decoded_prediction, decoded_references, max_n=1, weights=[1])
+                    bleu_2[idx] += bleu_score(decoded_prediction, decoded_references, max_n=2, weights=[0.5] * 2)
+                    bleu_3[idx] += bleu_score(decoded_prediction, decoded_references, max_n=3, weights=[1/3] * 3)
+                    bleu_4[idx] += bleu_score(decoded_prediction, decoded_references, max_n=4, weights=[0.25] * 4)
 
             global_step = epoch
             # Add bleu score to board

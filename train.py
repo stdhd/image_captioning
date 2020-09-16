@@ -107,7 +107,7 @@ if __name__ == '__main__':
                 labels = labels.to(device)
 
                 # forward
-                outputs, _, _, _ = model(inputs, labels)
+                outputs, _, att_probs, _ = model(inputs, labels)
                 log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels[:, 1:].contiguous().view(-1)  # shifted by one because of BOS
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())

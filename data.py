@@ -1,6 +1,7 @@
 import itertools
 import os
-from collections import defaultdict
+from collections import defaultdict, Counter
+from typing import List
 
 from PIL import Image
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
@@ -39,20 +40,24 @@ class Flickr8k(Dataset):
         valid_counter = 0
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
-            self.all_captions.append(caption.lower().split())
+            self.all_captions.append(caption.split())
             if image_file_name[:-2] in valid_image_file_names:
                 if len(caption.split()) not in self.lengths:
                     self.lengths[len(caption.split())] = [valid_counter]
                 else:
                     self.lengths[len(caption.split())].append(valid_counter)
-                self.idx2caption_no_padding.append(caption.lower().split())
+                self.idx2caption_no_padding.append(caption.split())
                 self.idx2image.append(image_file_name[:-2])
-                self.idx2caption.append(caption.lower().split())
+                self.idx2caption.append(caption.split())
                 self.image_name2idxs[image_file_name[:-2]].append(len(self.idx2image) - 1)
                 valid_counter += 1
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
-        self.corpus.vocab = Vocabulary(tokens=sorted(list(set(itertools.chain(*self.all_captions)))))  # Corpus containing possible tokens across TRAIN+DEV+TEST
+
+        counter = Counter(list(itertools.chain(*self.all_captions)))
+        vocab_tokens = sort_and_cut(counter, max_vocab_size)
+
+        self.corpus.vocab = Vocabulary(tokens=vocab_tokens)  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
         self.max_length = max(list(self.lengths.keys()))
 
@@ -77,3 +82,11 @@ class Flickr8k(Dataset):
     def __len__(self):
         return len(self.idx2caption)
 
+
+def sort_and_cut(counter: Counter, limit: int) -> List[str]:
+    """ Cut counter to most frequent, sorted numerically and alphabetically (copied from joeynmt)"""
+    # sort by frequency, then alphabetically
+    tokens_and_frequencies = sorted(counter.items(), key=lambda tup: tup[0])
+    tokens_and_frequencies.sort(key=lambda tup: tup[1], reverse=True)
+    vocab_tokens = [i[0] for i in tokens_and_frequencies[:limit]]
+    return vocab_tokens

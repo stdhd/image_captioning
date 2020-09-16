@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 
 import torch
 import torch.nn.functional as F
@@ -14,27 +13,28 @@ from tqdm import tqdm, trange
 
 from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
-from equal_sampler import EqualBatchSampler
 from model import Image2Caption, Encoder
 from visualize import Tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
+    print(torch.cuda.get_device_name())
+
     embed_size = 512
     hidden_size = 512
     batch_size = 16
-    model_name = f'mobilenet_v2_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}'
+    model_name = f'paper'
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
-    dataloader_train = DataLoader(data_train, num_workers=os.cpu_count(), batch_sampler=EqualBatchSampler(batch_size, True, data_train))  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
-    encoder = Encoder(models.mobilenet_v2, pretrained=True)
+    encoder = Encoder(models.vgg16, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
@@ -46,8 +46,8 @@ if __name__ == '__main__':
         vocab_size=vocab_size,
         init_hidden='bridge',
         attention='bahdanau',  # or: 'luong'
-        hidden_dropout=0.2,
-        emb_dropout=0.2
+        hidden_dropout=0.5,
+        emb_dropout=0.5
     )
 
     model = Image2Caption(encoder, decoder, embeddings, device).to(device)
@@ -73,15 +73,16 @@ if __name__ == '__main__':
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs, hidden, att_probs, att_vectors = model(inputs, labels,
-                                                            scheduled_sampling=True,
-                                                            batch_no=epoch*len(dataloader_train) + i,
-                                                            k=100,
-                                                            embeddings=embeddings)
+            outputs, _, att_probs, _ = model(inputs, labels,
+                                             scheduled_sampling=False,
+                                             batch_no=epoch * len(dataloader_train) + i,
+                                             k=100,
+                                             embeddings=embeddings)
+
             log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels[:, 1:].contiguous().view(-1)
             loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
-            loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()                   # Doubly stochastic attention regularization
+            loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
             optimizer.step()
 
@@ -95,10 +96,10 @@ if __name__ == '__main__':
             model.eval()
 
             loss_sum = 0
-            bleu_1 = [0, 0, 0, 0, 0]
-            bleu_2 = [0, 0, 0, 0, 0]
-            bleu_3 = [0, 0, 0, 0, 0]
-            bleu_4 = [0, 0, 0, 0, 0]
+            bleu_1 = [0]
+            bleu_2 = [0]
+            bleu_3 = [0]
+            bleu_4 = [0]
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
@@ -110,6 +111,7 @@ if __name__ == '__main__':
                 log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels[:, 1:].contiguous().view(-1)  # shifted by one because of BOS
                 loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+                loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
                 loss_sum += loss.item()
 
                 for beam_size in range(1, len(bleu_1) + 1):
@@ -123,7 +125,7 @@ if __name__ == '__main__':
                     idx = beam_size - 1
                     bleu_1[idx] += bleu_score(decoded_prediction, decoded_references, max_n=1, weights=[1])
                     bleu_2[idx] += bleu_score(decoded_prediction, decoded_references, max_n=2, weights=[0.5] * 2)
-                    bleu_3[idx] += bleu_score(decoded_prediction, decoded_references, max_n=3, weights=[1/3] * 3)
+                    bleu_3[idx] += bleu_score(decoded_prediction, decoded_references, max_n=3, weights=[1 / 3] * 3)
                     bleu_4[idx] += bleu_score(decoded_prediction, decoded_references, max_n=4, weights=[0.25] * 4)
 
             global_step = epoch

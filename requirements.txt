@@ -1,7 +1,6 @@
 Pillow==7.2.0
 joeynmt==0.0.1
 matplotlib==3.3.0
-nltk==3.5
 numpy==1.18.5
 torch==1.6.0
 torchtext==0.7.0

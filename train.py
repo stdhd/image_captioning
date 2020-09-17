@@ -18,6 +18,19 @@ from visualize import Tensorboard
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
+def clip_gradient(optimizer, grad_clip):
+    """
+    Clips gradients computed during backpropagation to avoid explosion of gradients.
+    :param optimizer: optimizer with the gradients to be clipped
+    :param grad_clip: clip value
+    """
+    for group in optimizer.param_groups:
+        for param in group['params']:
+            if param.grad is not None:
+                param.grad.data.clamp_(-grad_clip, grad_clip)
+
+
 if __name__ == '__main__':
     print(torch.cuda.get_device_name())
 
@@ -84,6 +97,7 @@ if __name__ == '__main__':
             loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
             loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
+            clip_gradient(optimizer, 5.)
             optimizer.step()
 
             # print statistics

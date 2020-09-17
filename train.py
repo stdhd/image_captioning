@@ -55,7 +55,8 @@ if __name__ == '__main__':
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
 
-    criterion = nn.NLLLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
+    #criterion = nn.NLLLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
+    criterion = nn.CrossEntropyLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     last_validation_score = float('-inf')
 

@@ -80,9 +80,8 @@ if __name__ == '__main__':
                                              k=100,
                                              embeddings=embeddings)
 
-            log_probs = F.log_softmax(outputs, dim=-1)
             targets = labels[:, 1:].contiguous().view(-1)
-            loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+            loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
             loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
             optimizer.step()
@@ -109,9 +108,8 @@ if __name__ == '__main__':
 
                 # forward
                 outputs, _, att_probs, _ = model(inputs, labels)
-                log_probs = F.log_softmax(outputs, dim=-1)
                 targets = labels[:, 1:].contiguous().view(-1)  # shifted by one because of BOS
-                loss = criterion(log_probs.contiguous().view(-1, log_probs.shape[-1]), targets.long())
+                loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
                 loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
                 loss_sum += loss.item()
 

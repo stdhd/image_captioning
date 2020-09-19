@@ -12,7 +12,7 @@ from torchtext import data
 
 class Flickr8k(Dataset):
 
-    def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None, max_vocab_size: int = None):
+    def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None, max_vocab_size: int = None, all_lower: bool = False):
         """
         Flickr Dataset class to use with dataloader
         :param data_path: dataset directory
@@ -40,7 +40,10 @@ class Flickr8k(Dataset):
         valid_counter = 0
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
-            self.all_captions.append(caption.split())
+            if all_lower:
+                self.all_captions.append(caption.lower().split())
+            else:
+                self.all_captions.append(caption.split())
             if image_file_name[:-2] in valid_image_file_names:
                 if len(caption.split()) not in self.lengths:
                     self.lengths[len(caption.split())] = [valid_counter]

@@ -12,6 +12,7 @@
   scheduled_sampling_k: 1,
   max_vocab_size: 10_000,
   attention: 'bahdanau',
-  freeze_encoder: True
+  freeze_encoder: True,
+  all_lower: False
 
 }

@@ -35,7 +35,7 @@ if __name__ == '__main__':
     model_name = f'default'
 
     params = parse_yaml(model_name, 'param')
-    #print(torch.cuda.get_device_name())
+    print(torch.cuda.get_device_name())
 
     embed_size = params['embed_size']
     hidden_size = params['hidden_size']
@@ -44,10 +44,10 @@ if __name__ == '__main__':
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
     data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
     encoder = Encoder(models.vgg16, pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)

@@ -1,5 +1,5 @@
 import os
-
+from yaml_parser import parse_yaml
 import torch
 import torch.nn.functional as F
 from joeynmt.constants import PAD_TOKEN
@@ -32,19 +32,21 @@ def clip_gradient(optimizer, grad_clip):
 
 
 if __name__ == '__main__':
+    model_name = f'default'
+
+    params = parse_yaml(model_name, 'param')
     print(torch.cuda.get_device_name())
 
-    embed_size = 512
-    hidden_size = 512
-    batch_size = 16
-    model_name = f'paper'
+    embed_size = params['embed_size']
+    hidden_size = params['hidden_size']
+    batch_size = params['batch_size']
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
-    data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
+    data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'])
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
-    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=10_000)
+    data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'])
     dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
     encoder = Encoder(models.vgg16, pretrained=True)
@@ -58,22 +60,21 @@ if __name__ == '__main__':
         encoder=encoder,
         vocab_size=vocab_size,
         init_hidden='bridge',
-        attention='bahdanau',  # or: 'luong'
-        hidden_dropout=0.5,
-        emb_dropout=0.5
+        attention=params['attention'],
+        hidden_dropout=params['hidden_dropout'],
+        emb_dropout=params['emb_dropout']
     )
 
-    model = Image2Caption(encoder, decoder, embeddings, device).to(device)
+    model = Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)
 
-    #criterion = nn.NLLLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
     criterion = nn.CrossEntropyLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=float(params['learning_rate']), weight_decay=float(params['weight_decay']))
     last_validation_score = float('-inf')
 
-    for epoch in trange(100):  # loop over the dataset multiple times
+    for epoch in trange(params['n_epochs']):  # loop over the dataset multiple times
         model.train()
 
         running_loss = 0.0
@@ -88,9 +89,9 @@ if __name__ == '__main__':
 
             # forward + backward + optimize
             outputs, _, att_probs, _ = model(inputs, labels,
-                                             scheduled_sampling=False,
+                                             scheduled_sampling=params['scheduled_sampling'],
                                              batch_no=epoch * len(dataloader_train) + i,
-                                             k=100,
+                                             k=params['scheduled_sampling_k'],
                                              embeddings=embeddings)
 
             targets = labels[:, 1:].contiguous().view(-1)

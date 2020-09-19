@@ -1,0 +1,17 @@
+{
+  n_epochs: 10,
+  learning_rate: 1e-4,
+  weight_decay: 0,
+  embed_size: 512,
+  hidden_size: 512,
+  batch_size: 16,
+  hidden_dropout: 0.5,
+  emb_dropout: 0.5,
+  grad_clip: 5.,
+  scheduled_sampling: False,
+  scheduled_sampling_k: 1,
+  max_vocab_size: 10_000,
+  attention: 'bahdanau',
+  freeze_encoder: True
+
+}

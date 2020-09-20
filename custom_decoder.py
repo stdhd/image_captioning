@@ -1,10 +1,25 @@
-from typing import Optional
-
 import math
 import random
+from typing import Optional
+
 import torch
+import torch.nn.functional as F
+from joeynmt.attention import BahdanauAttention
 from joeynmt.decoders import RecurrentDecoder
 from torch import Tensor
+from torch.distributions import Categorical
+
+
+class HardAttention(BahdanauAttention):
+    def __init__(self, *args, **kwargs):
+        super(HardAttention, self).__init__(*args, **kwargs)
+
+    def forward(self, query: Tensor = None, mask: Tensor = None, values: Tensor = None):
+        _, alphas = super(HardAttention, self).forward(query, mask, values)
+        distribution = Categorical(logits=alphas)
+        alphas_hard = F.one_hot(distribution.sample(), num_classes=alphas.shape[-1]).float()
+
+        return alphas_hard @ values, alphas_hard
 
 
 class CustomRecurrentDecoder(RecurrentDecoder):
@@ -16,6 +31,9 @@ class CustomRecurrentDecoder(RecurrentDecoder):
 
         self.bridge_layer_h = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
         self.bridge_layer_c = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
+
+        if kwargs.get('attention') == 'hard':
+            self.attention = HardAttention(hidden_size=hidden_size, key_size=encoder.output_size, query_size=hidden_size)
 
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
         hidden_h = torch.tanh(self.bridge_layer_h(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)

@@ -1,7 +1,6 @@
 import os
-from yaml_parser import parse_yaml
+
 import torch
-import torch.nn.functional as F
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
 from torch import optim, nn
@@ -15,6 +14,7 @@ from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
 from model import Image2Caption, Encoder
 from visualize import Tensorboard
+from yaml_parser import parse_yaml
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -40,6 +40,8 @@ if __name__ == '__main__':
     embed_size = params['embed_size']
     hidden_size = params['hidden_size']
     batch_size = params['batch_size']
+
+    grad_clip = params.get('grad_clip', None)
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
@@ -98,7 +100,8 @@ if __name__ == '__main__':
             loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
             loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
-            clip_gradient(optimizer, 5.)
+            if grad_clip:
+                clip_gradient(optimizer, grad_clip)
             optimizer.step()
 
             # print statistics

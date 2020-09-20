@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
     decoder = CustomRecurrentDecoder(
-        rnn_type="lstm",
+        rnn_type=params.get('rnn_type'),
         emb_size=embed_size,
         hidden_size=hidden_size,
         encoder=encoder,

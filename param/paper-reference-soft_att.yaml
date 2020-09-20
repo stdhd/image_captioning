@@ -11,6 +11,7 @@
   scheduled_sampling: False,
   scheduled_sampling_k: 1,
   max_vocab_size: 10_000,
+  encoder: 'vgg16',
   rnn_type: 'lstm',
   attention: 'bahdanau',
   freeze_encoder: True,

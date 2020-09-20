@@ -51,7 +51,7 @@ if __name__ == '__main__':
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
-    encoder = Encoder(models.vgg16, pretrained=True)
+    encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
     vocab_size = len(data_train.corpus.vocab.itos)
 
     embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)

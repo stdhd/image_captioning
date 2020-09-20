@@ -35,7 +35,7 @@ if __name__ == '__main__':
     model_name = f'default'
 
     params = parse_yaml(model_name, 'param')
-    print(torch.cuda.get_device_name())
+    print(f'run {model_name} on  {torch.cuda.get_device_name()}')
 
     embed_size = params['embed_size']
     hidden_size = params['hidden_size']

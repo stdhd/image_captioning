@@ -15,5 +15,6 @@
   rnn_type: 'lstm',
   attention: 'bahdanau',
   freeze_encoder: True,
-  all_lower: False
+  all_lower: False,
+  decoder-num_layers: 1
 }

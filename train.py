@@ -64,7 +64,8 @@ if __name__ == '__main__':
         init_hidden='bridge',
         attention=params['attention'],
         hidden_dropout=params['hidden_dropout'],
-        emb_dropout=params['emb_dropout']
+        emb_dropout=params['emb_dropout'],
+        num_layers=params.get('decoder-num_layers', 1)
     )
 
     model = Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device)

@@ -92,6 +92,11 @@ class Flickr8k(Dataset):
         self.corpus.vocab = corpus_vocab
 
     def __getitem__(self, index):
+        """
+        Get data from dataset on index position
+        :param index: Index number
+        :return: Image as tensor, true captions as tensor of token number, name of the image file
+        """
         image_name = self.idx2image[index]
 
         # Image

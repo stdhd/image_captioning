@@ -15,13 +15,13 @@ class Flickr8k(Dataset):
     def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None, max_vocab_size: int = None, all_lower: bool = False):
         """
         Flickr Dataset class to use with dataloader
-        :param data_path: dataset directory
-        :param split_file_name: file listing all used images in split - vary this parameter for train/test split
-        :param ann_file_name: file containing annotation tokens
-        :param transform: torchvision transforms object to be applied on the images
-        :param fix_length: pads caption fix_length if provided, otherwise pads to the length of the longest example in the batch
-        :param max_vocab_size: the maximum size of the vocabulary, or None for no maximum
-        :param all_lower: set this to convert all tokens to lower case
+        :param data_path: Dataset directory
+        :param split_file_name: File listing all used images in split - vary this parameter for train/test split
+        :param ann_file_name: File containing annotation tokens
+        :param transform: Torchvision transforms object to be applied on the images
+        :param fix_length: Pads caption fix_length if provided, otherwise pads to the length of the longest example in the batch
+        :param max_vocab_size: The maximum size of the vocabulary, or None for no maximum
+        :param all_lower: Set this to convert all tokens to lower case
         """
         self.root = os.path.expanduser(data_path)
         self.ann_file = os.path.expanduser(ann_file_name)

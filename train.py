@@ -52,7 +52,7 @@ def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption
 
 
 if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')  # fix CUDA multicore
+    model_name = f'paper-reference-soft_att'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
@@ -69,11 +69,11 @@ if __name__ == '__main__':
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform_aug, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     else:
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=8)  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=8)  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
 
     embeddings, model, encoder = setup_model(params, data_train)
 

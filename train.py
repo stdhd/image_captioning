@@ -93,7 +93,7 @@ if __name__ == '__main__':
             # forward + backward + optimize
             outputs, _, att_probs, _ = model(inputs, labels,
                                              scheduled_sampling=params['scheduled_sampling'],
-                                             batch_no=epoch * len(dataloader_train) + i,
+                                             batch_no=epoch + i / len(dataloader_train),
                                              k=params['scheduled_sampling_k'],
                                              embeddings=embeddings)
 

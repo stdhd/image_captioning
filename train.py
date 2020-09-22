@@ -1,4 +1,5 @@
 import os
+from typing import Tuple
 
 import torch
 from joeynmt.constants import PAD_TOKEN
@@ -31,14 +32,32 @@ def clip_gradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
+def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption]:
+    encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
+    vocab_size = len(data.corpus.vocab.itos)
+    decoder = CustomRecurrentDecoder(
+        rnn_type=params.get('rnn_type'),
+        emb_size=params['embed_size'],
+        hidden_size=params['hidden_size'],
+        encoder=encoder,
+        vocab_size=vocab_size,
+        init_hidden='bridge',
+        attention=params['attention'],
+        hidden_dropout=params['hidden_dropout'],
+        emb_dropout=params['emb_dropout'],
+        num_layers=params.get('decoder-num_layers', 1)
+    )
+
+    embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device)
+
+
 if __name__ == '__main__':
     model_name = f'default'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
 
-    embed_size = params['embed_size']
-    hidden_size = params['hidden_size']
     batch_size = params['batch_size']
 
     grad_clip = params.get('grad_clip', None)
@@ -57,24 +76,7 @@ if __name__ == '__main__':
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
     dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
-    encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
-    vocab_size = len(data_train.corpus.vocab.itos)
-
-    embeddings = Embeddings(embedding_dim=embed_size, vocab_size=vocab_size)
-    decoder = CustomRecurrentDecoder(
-        rnn_type=params.get('rnn_type'),
-        emb_size=embed_size,
-        hidden_size=hidden_size,
-        encoder=encoder,
-        vocab_size=vocab_size,
-        init_hidden='bridge',
-        attention=params['attention'],
-        hidden_dropout=params['hidden_dropout'],
-        emb_dropout=params['emb_dropout'],
-        num_layers=params.get('decoder-num_layers', 1)
-    )
-
-    model = Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device)
+    embeddings, model = setup_model(params, data_train)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
     tensorboard.add_images_with_ground_truth(data_dev)

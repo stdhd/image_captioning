@@ -54,6 +54,7 @@ if __name__ == '__main__':
     dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
+    data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
     dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
     encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)

@@ -25,12 +25,13 @@ class Flickr8k(Dataset):
         self.root = os.path.expanduser(data_path)
         self.ann_file = os.path.expanduser(ann_file_name)
         self.transform = transform
+        self.max_vocab_size = max_vocab_size
 
         self.idx2image = []
         self.idx2caption = []
         self.idx2caption_no_padding = []
         self.image_name2idxs = defaultdict(list)
-        self.all_captions = []  # Captions on ENTIRE dataset (TRAIN+DEV+TEST)
+        self.my_captions = []  # Captions on specific set train OR dev OR test
         self.lengths = dict()
 
         # Get image file names for chosen TRAIN/DEV/TEST data
@@ -40,11 +41,11 @@ class Flickr8k(Dataset):
         valid_counter = 0
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
-            if all_lower:
-                self.all_captions.append(caption.lower().split())
-            else:
-                self.all_captions.append(caption.split())
             if image_file_name[:-2] in valid_image_file_names:
+                if all_lower:
+                    self.my_captions.append(caption.lower().split())
+                else:
+                    self.my_captions.append(caption.split())
                 if len(caption.split()) not in self.lengths:
                     self.lengths[len(caption.split())] = [valid_counter]
                 else:
@@ -57,12 +58,18 @@ class Flickr8k(Dataset):
 
         self.corpus = data.Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN, unk_token=UNK_TOKEN, fix_length=fix_length)
 
-        counter = Counter(list(itertools.chain(*self.all_captions)))
-        vocab_tokens = sort_and_cut(counter, max_vocab_size)
-
-        self.corpus.vocab = Vocabulary(tokens=vocab_tokens)  # Corpus containing possible tokens across TRAIN+DEV+TEST
         self.idx2caption = self.corpus.pad(self.idx2caption)
         self.max_length = max(list(self.lengths.keys()))
+        counter = Counter(list(itertools.chain(*self.my_captions)))
+        vocab_tokens = sort_and_cut(counter, self.max_vocab_size)
+
+        self.corpus.vocab = Vocabulary(tokens=vocab_tokens)
+
+    def get_corpus_vocab(self):
+        return self.corpus.vocab
+
+    def set_corpus_vocab(self, corpus_vocab):
+        self.corpus.vocab = corpus_vocab
 
     def __getitem__(self, index):
         image_name = self.idx2image[index]

@@ -24,7 +24,7 @@ class Image2Caption(nn.Module):
                 param.requires_grad = False
 
     def forward(self, x: Tensor, y: Tensor, **kwargs) -> (Tensor, Tensor, Tensor, Tensor):
-        x = self.encoder(x)
+        # x = self.encoder_wrapper(x)
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed=self.embeddings(y.long()),
             encoder_output=x,
@@ -37,7 +37,7 @@ class Image2Caption(nn.Module):
         return outputs, hidden, att_probs, att_vectors
 
     def predict(self, data: Flickr8k, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
-        x = self.encoder(x)
+        # x = self.encoder(x)
 
         if beam_size < 2:
             output, attention_scores = greedy(

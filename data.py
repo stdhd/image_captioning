@@ -1,6 +1,7 @@
 import itertools
 import os
 from collections import defaultdict, Counter
+from functools import lru_cache
 from typing import List
 
 from PIL import Image
@@ -71,6 +72,10 @@ class Flickr8k(Dataset):
     def set_corpus_vocab(self, corpus_vocab):
         self.corpus.vocab = corpus_vocab
 
+    def set_encoder(self, encoder):
+        self.encoder = encoder
+
+    @lru_cache(maxsize=None)
     def __getitem__(self, index):
         image_name = self.idx2image[index]
 
@@ -81,7 +86,7 @@ class Flickr8k(Dataset):
 
         # Captions, for image
         caption = self.corpus.numericalize([self.idx2caption[index]]).squeeze()
-        return img, caption, image_name
+        return self.encoder(img.unsqueeze(0).cuda()).squeeze(0).detach().cpu(), caption, image_name
 
     def get_all_references_for_image_name(self, image_name: str):
         references = []

@@ -1,4 +1,3 @@
-import os
 from typing import Tuple
 
 import torch
@@ -32,7 +31,7 @@ def clip_gradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
-def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption]:
+def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption, Encoder]:
     encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
     vocab_size = len(data.corpus.vocab.itos)
     decoder = CustomRecurrentDecoder(
@@ -49,11 +48,11 @@ def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption
     )
 
     embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device)
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device), encoder
 
 
 if __name__ == '__main__':
-    model_name = f'default'
+    torch.multiprocessing.set_start_method('spawn')  # fix CUDA multicore
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
@@ -70,16 +69,19 @@ if __name__ == '__main__':
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform_aug, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     else:
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=8)  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=8)  # os.cpu_count()
 
-    embeddings, model = setup_model(params, data_train)
+    embeddings, model, encoder = setup_model(params, data_train)
+
+    data_train.set_encoder(encoder)
+    data_dev.set_encoder(encoder)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
-    tensorboard.add_images_with_ground_truth(data_dev)
+    # tensorboard.add_images_with_ground_truth(data_dev)
 
     criterion = nn.CrossEntropyLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
     optimizer = optim.Adam(model.parameters(), lr=float(params['learning_rate']), weight_decay=float(params['weight_decay']))

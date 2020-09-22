@@ -1,3 +1,4 @@
+import sys
 from typing import Tuple
 
 import torch
@@ -52,7 +53,12 @@ def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption
 
 
 if __name__ == '__main__':
-    model_name = f'paper-reference-soft_att'
+    argv = sys.argv[1:]
+
+    if len(argv) > 0:
+        model_name = argv[0]
+    else:
+        model_name = f'paper-reference-soft_att'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')

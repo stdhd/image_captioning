@@ -82,7 +82,16 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=float(params['learning_rate']), weight_decay=float(params['weight_decay']))
     last_validation_score = float('-inf')
 
-    for epoch in trange(params['n_epochs']):  # loop over the dataset multiple times
+    start_epoch = 0
+
+    model_path = params.get('load_model', None)
+    if model_path:
+        state_dicts = torch.load(model_path, map_location=device)
+        start_epoch = state_dicts['epoch'] + 1
+        model.load_state_dict(state_dicts['model_state_dict'])
+        optimizer.load_state_dict(state_dicts['optimizer_state_dict'])
+
+    for epoch in trange(start_epoch, params['n_epochs']):  # loop over the dataset multiple times
         model.train()
 
         running_loss = 0.0

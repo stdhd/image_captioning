@@ -32,7 +32,6 @@ class Flickr8k(Dataset):
         self.idx2caption = []
         self.idx2caption_no_padding = []
         self.image_name2idxs = defaultdict(list)
-        self.my_captions = []  # Captions on train OR dev OR test set
         self.lengths = dict()
 
         # Get image file names for chosen TRAIN/DEV/TEST data
@@ -47,19 +46,20 @@ class Flickr8k(Dataset):
             if image_file_name[:-2] in valid_image_file_names:
                 # In case this option is enabled, convert all tokens in lower letters.
                 if all_lower:
-                    self.my_captions.append(caption.lower().split())
+                    caption = caption.lower().split()
+                    self.idx2caption.append(caption)
                 else:
-                    self.my_captions.append(caption.split())
+                    caption = caption.split()
+                    self.idx2caption.append(caption)
 
                 # Store each caption id corresponding a caption length in a dictionary
                 # ...this can be used to sample batches of equal size
-                if len(caption.split()) not in self.lengths:
-                    self.lengths[len(caption.split())] = [valid_counter]
+                if len(caption) not in self.lengths:
+                    self.lengths[len(caption)] = [valid_counter]
                 else:
-                    self.lengths[len(caption.split())].append(valid_counter)
-                self.idx2caption_no_padding.append(caption.split())
+                    self.lengths[len(caption)].append(valid_counter)
+                self.idx2caption_no_padding.append(caption)
                 self.idx2image.append(image_file_name[:-2])
-                self.idx2caption.append(caption.split())
                 self.image_name2idxs[image_file_name[:-2]].append(len(self.idx2image) - 1)
                 valid_counter += 1
 
@@ -70,7 +70,7 @@ class Flickr8k(Dataset):
         self.idx2caption = self.corpus.pad(self.idx2caption)
 
         # Select the most-frequently used tokens (top max_vocab_size) and build vocabulary object
-        counter = Counter(list(itertools.chain(*self.my_captions)))
+        counter = Counter(list(itertools.chain(*self.idx2caption)))
         vocab_tokens = sort_and_cut(counter, self.max_vocab_size)
         self.corpus.vocab = Vocabulary(tokens=vocab_tokens)
 

@@ -15,7 +15,7 @@ class Image2Caption(nn.Module):
     """
     Class combining decoder and encoder
     """
-    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True):
+    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder = 0):
         """
         Combined encoder-decoder model
         :param encoder: nn.Module object representing the encoder
@@ -23,12 +23,14 @@ class Image2Caption(nn.Module):
         :param embeddings: joeynmt.embeddings.Embeddings object
         :param device: torch.device('cpu') or torch.device('cuda') for example
         :param freeze_encoder: If true, do not continue learning the encoder
+        :param: dropout_after_encoder: If true, enable dropout layer between encoder and decoder
         """
         super(Image2Caption, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.embeddings = embeddings
         self.device = device
+        self.dropout_after_encoder_layer = nn.Dropout(dropout_after_encoder)
 
         # In case we do not want to continue training the encoder, gradient calculation is disabled for the encoder
         if freeze_encoder:
@@ -48,6 +50,7 @@ class Image2Caption(nn.Module):
             - att_vectors: Attention vectors of whole unrolling (batch_size, unroll_steps, hidden_size)
         """
         x = self.encoder(x)
+        x = self.dropout_after_encoder_layer(x)
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed=self.embeddings(y.long()),
             encoder_output=x,

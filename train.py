@@ -49,7 +49,7 @@ def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption
     )
 
     embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder']).to(device), encoder
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'], dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device), encoder
 
 
 if __name__ == '__main__':

@@ -1,11 +1,12 @@
 from typing import Callable
 
+import numpy as np
 import torch
 import torch.nn as nn
+from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
 from joeynmt.decoders import Decoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.search import greedy, beam_search
-from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
 from torch import Tensor
 
 from data import Flickr8k
@@ -15,7 +16,8 @@ class Image2Caption(nn.Module):
     """
     Class combining decoder and encoder
     """
-    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder = 0):
+
+    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder=0):
         """
         Combined encoder-decoder model
         :param encoder: nn.Module object representing the encoder
@@ -49,6 +51,8 @@ class Image2Caption(nn.Module):
             - att_probs: Attention probabilities of whole unrolling (batch_size, unroll_steps, src_length)
             - att_vectors: Attention vectors of whole unrolling (batch_size, unroll_steps, hidden_size)
         """
+        kwargs['unroll_steps'] = kwargs.get('unroll_steps') - 1
+
         x = self.encoder(x)
         x = self.dropout_after_encoder_layer(x)
         outputs, hidden, att_probs, att_vectors = self.decoder(
@@ -56,7 +60,6 @@ class Image2Caption(nn.Module):
             encoder_output=x,
             encoder_hidden=x.mean(dim=1),
             src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
-            unroll_steps=y.shape[1] - 1,
             **kwargs
         )
 

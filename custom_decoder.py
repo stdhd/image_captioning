@@ -24,6 +24,7 @@ class HardAttention(BahdanauAttention):
 
 class CustomRecurrentDecoder(RecurrentDecoder):
     def __init__(self, *args, **kwargs):
+        self.rnn_type = kwargs.get('rnn_type')
         encoder = kwargs.get('encoder')
         hidden_size = kwargs.get('hidden_size')
 
@@ -39,9 +40,11 @@ class CustomRecurrentDecoder(RecurrentDecoder):
 
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
         hidden_h = torch.tanh(self.bridge_layer_h(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
-        hidden_c = torch.tanh(self.bridge_layer_c(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
-
-        return hidden_h, hidden_c
+        if self.rnn_type == "lstm":
+            hidden_c = torch.tanh(self.bridge_layer_c(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
+            return hidden_h, hidden_c
+        else:
+            return hidden_h
 
     def forward(self,
                 trg_embed: Tensor,

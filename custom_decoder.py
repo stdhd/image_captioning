@@ -24,16 +24,18 @@ class HardAttention(BahdanauAttention):
 
 class CustomRecurrentDecoder(RecurrentDecoder):
     def __init__(self, *args, **kwargs):
-        super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
-
         encoder = kwargs.get('encoder')
         hidden_size = kwargs.get('hidden_size')
 
+        if kwargs.get('attention') == 'hard':
+            kwargs['attention'] = 'bahdanau'  # use bahdanau attention to create Decoder
+            super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
+            self.attention = HardAttention(hidden_size=hidden_size, key_size=encoder.output_size, query_size=hidden_size)  # replace bahdanau attention with hard attention
+        else:
+            super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
+
         self.bridge_layer_h = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
         self.bridge_layer_c = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
-
-        if kwargs.get('attention') == 'hard':
-            self.attention = HardAttention(hidden_size=hidden_size, key_size=encoder.output_size, query_size=hidden_size)
 
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
         hidden_h = torch.tanh(self.bridge_layer_h(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)

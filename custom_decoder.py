@@ -100,6 +100,7 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         k = kwargs.get('k', 1)
         batch_no = kwargs.get('batch_no', 0)
         embeddings = kwargs.get('embeddings', None)
+        scheduled_sampling_fixed = kwargs.get('scheduled_sampling_fixed', None),
 
         # shape checks
         self._check_shapes_input_forward(
@@ -134,8 +135,12 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         # unroll the decoder RNN for `unroll_steps` steps
         for i in range(unroll_steps):
             epsilon = 1
-            if scheduled_sampling and i > 0:
-                epsilon = k / (k + math.exp(batch_no / k))
+            if scheduled_sampling and i > 0:  # first word has to be <s>
+                if scheduled_sampling_fixed:
+                    epsilon = scheduled_sampling_fixed
+                else:
+                    epsilon = k / (k + math.exp(batch_no / k))
+
             if random.uniform(0, 1) <= epsilon:
                 prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             else:

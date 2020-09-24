@@ -1,4 +1,4 @@
-import sys
+import os
 from typing import Tuple
 
 import numpy as np
@@ -34,7 +34,7 @@ def clip_gradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
-def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedEmbeddings) -> Tuple[Embeddings, Image2Caption, Encoder]:
+def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedEmbeddings) -> Tuple[Embeddings, Image2Caption]:
     encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
     vocab_size = len(data.corpus.vocab.itos) if not params.get('embed_pretrained', False) else 300
     decoder = CustomRecurrentDecoder(
@@ -55,7 +55,8 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
     else:
         embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
 
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'], dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device), encoder
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'],
+                                     dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device)
 
 
 def get_unroll_steps(unroll_steps: str, labels) -> int:
@@ -68,12 +69,7 @@ def get_unroll_steps(unroll_steps: str, labels) -> int:
 
 
 if __name__ == '__main__':
-    argv = sys.argv[1:]
-
-    if len(argv) > 0:
-        model_name = argv[0]
-    else:
-        model_name = f'paper-reference-soft_att'
+    model_name = f'default'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
@@ -99,19 +95,16 @@ if __name__ == '__main__':
     else:
         pretrained_embeds = None
 
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
-    embeddings, model, encoder = setup_model(params, data_train, pretrained_embeds)
-
-    data_train.set_encoder(encoder)
-    data_dev.set_encoder(encoder)
+    embeddings, model = setup_model(params, data_train, pretrained_embeds)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
-    # tensorboard.add_images_with_ground_truth(data_dev)
+    tensorboard.add_images_with_ground_truth(data_dev)
 
     if embed_pretrained:
         criterion = nn.CosineEmbeddingLoss()

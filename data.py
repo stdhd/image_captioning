@@ -1,7 +1,6 @@
 import itertools
 import os
 from collections import defaultdict, Counter
-from functools import lru_cache
 from typing import List
 
 from PIL import Image
@@ -95,10 +94,6 @@ class Flickr8k(Dataset):
     def get_corpus(self):
         return self.corpus
 
-    def set_encoder(self, encoder):
-        self.encoder = encoder
-
-    @lru_cache(maxsize=None)
     def __getitem__(self, index):
         """
         Get data from dataset on index position
@@ -114,7 +109,7 @@ class Flickr8k(Dataset):
 
         # Captions, for image
         caption = self.corpus.numericalize([self.idx2caption[index]]).squeeze()
-        return self.encoder(img.unsqueeze(0).cuda()).squeeze(0).detach().cpu(), caption, image_name
+        return img, caption, image_name
 
     def get_all_references_for_image_name(self, image_name: str):
         """

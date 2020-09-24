@@ -1,6 +1,6 @@
-import os
 from typing import Tuple
 
+import numpy as np
 import torch
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
@@ -10,16 +10,13 @@ from torchtext.data import bleu_score
 from torchvision import models
 from torchvision import transforms as T
 from tqdm import tqdm, trange
-import numpy as np
 
 from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
 from model import Image2Caption, Encoder
+from pretrained_embeddings import PretrainedEmbeddings
 from visualize import Tensorboard
 from yaml_parser import parse_yaml
-from pretrained_embeddings import PretrainedEmbeddings
-import numpy as np
-
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -61,6 +58,15 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
                                      dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device)
 
 
+def get_unroll_steps(unroll_steps: str, labels) -> int:
+    if unroll_steps_type == 'full_length':
+        return labels.shape[1]
+    elif unroll_steps_type == 'batch_length':
+        return np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
+    elif unroll_steps == 'batch_number':
+        return int(2 + np.ceil(epoch / 2))
+
+
 if __name__ == '__main__':
     model_name = f'default'
 
@@ -68,6 +74,7 @@ if __name__ == '__main__':
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
 
     batch_size = params['batch_size']
+    unroll_steps_type = params.get('unroll_steps_type', 'full_length')  # batch_length, batch_number
 
     grad_clip = params.get('grad_clip', None)
 
@@ -122,8 +129,7 @@ if __name__ == '__main__':
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels, _ = data
-            unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
-
+            unroll_steps = get_unroll_steps(unroll_steps_type, labels)
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -168,7 +174,7 @@ if __name__ == '__main__':
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
-                unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
+                unroll_steps = get_unroll_steps(unroll_steps_type, labels)
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 

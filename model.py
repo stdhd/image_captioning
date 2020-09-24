@@ -1,6 +1,5 @@
 from typing import Callable
 
-import numpy as np
 import torch
 import torch.nn as nn
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN

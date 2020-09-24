@@ -16,6 +16,7 @@ from data import Flickr8k
 from model import Image2Caption, Encoder
 from visualize import Tensorboard
 from yaml_parser import parse_yaml
+import numpy as np
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

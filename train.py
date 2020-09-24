@@ -83,7 +83,7 @@ if __name__ == '__main__':
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
 
     if embed_pretrained:
-        pretrained_embeds = PretrainedEmbeddings("embeddings/glove_shrinked.txt", data_train.get_corpus())
+        pretrained_embeds = PretrainedEmbeddings("embeddings/glove_shrinked.txt", data_train.get_corpus(), device)
     else:
         pretrained_embeds = None
 
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
             if embed_pretrained:
                 targets = labels[:, 1:unroll_steps].contiguous()
-                loss = criterion(outputs, pretrained_embeds(targets.long()), torch.tensor([1]).float())
+                loss = criterion(outputs, pretrained_embeds(targets.long()), torch.tensor([1]).float().to(device))
             else:
                 targets = labels[:, 1:unroll_steps].contiguous().view(-1)
                 loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())

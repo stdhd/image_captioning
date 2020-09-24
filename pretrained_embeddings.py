@@ -1,12 +1,12 @@
+import numpy
 import torch
 import torch.nn as nn
-import numpy
 
 
 class PretrainedEmbeddings(nn.Module):
-    def __init__(self, file_path, corpus):
+    def __init__(self, file_path, corpus, device: str):
         super().__init__()
-        self.token2embedding_tensor = torch.empty(10_000, 300)
+        self.token2embedding_tensor = torch.empty(10_000, 300).to(device)
         with open(file_path) as file:
             lines = file.read().splitlines()
         for idx, line in enumerate(lines):
@@ -21,5 +21,3 @@ class PretrainedEmbeddings(nn.Module):
         if len(list(x.size())) > 1:
             result = result.reshape(x.size(0), x.size(1), 300)
         return result
-
-

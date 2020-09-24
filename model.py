@@ -52,8 +52,8 @@ class Image2Caption(nn.Module):
         """
         kwargs['unroll_steps'] = kwargs.get('unroll_steps') - 1
 
-        x = self.encoder(x)
         x = self.dropout_after_encoder_layer(x)
+        # x = self.encoder_wrapper(x)
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed=self.embeddings(y.long()),
             encoder_output=x,
@@ -76,7 +76,7 @@ class Image2Caption(nn.Module):
             - output: Tensor of predicted tokens (batch, unroll_steps, vocab_size)
             - attention_scores: Attention probabilities of whole unrolling (batch_size, unroll_steps, src_length)
         """
-        x = self.encoder(x)
+        # x = self.encoder(x)
 
         if beam_size < 2:
             output, attention_scores = greedy(

@@ -18,6 +18,8 @@ from model import Image2Caption, Encoder
 from visualize import Tensorboard
 from yaml_parser import parse_yaml
 from pretrained_embeddings import PretrainedEmbeddings
+import numpy as np
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -120,6 +122,8 @@ if __name__ == '__main__':
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels, _ = data
+            unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
+
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -131,14 +135,16 @@ if __name__ == '__main__':
                                              scheduled_sampling=params['scheduled_sampling'],
                                              batch_no=epoch + i / len(dataloader_train),
                                              k=params['scheduled_sampling_k'],
-                                             embeddings=embeddings)
+                                             embeddings=embeddings,
+                                             unroll_steps=unroll_steps)
 
             if embed_pretrained:
-                targets = labels[:, 1:].contiguous()
+                targets = labels[:, 1:unroll_steps].contiguous()
                 loss = criterion(outputs, pretrained_embeds(targets.long()), torch.tensor([1]).float())
             else:
-                targets = labels[:, 1:].contiguous().view(-1)
+                targets = labels[:, 1:unroll_steps].contiguous().view(-1)
                 loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
+
             loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
             if grad_clip:
@@ -162,12 +168,13 @@ if __name__ == '__main__':
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
+                unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
                 # forward
-                outputs, _, att_probs, _ = model(inputs, labels)
-                targets = labels[:, 1:].contiguous().view(-1)  # shifted by one because of BOS
+                outputs, _, att_probs, _ = model(inputs, labels, unroll_steps=unroll_steps)
+                targets = labels[:, 1:unroll_steps].contiguous().view(-1)  # shifted by one because of BOS
                 loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
                 loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
                 loss_sum += loss.item()

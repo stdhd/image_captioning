@@ -24,22 +24,27 @@ class HardAttention(BahdanauAttention):
 
 class CustomRecurrentDecoder(RecurrentDecoder):
     def __init__(self, *args, **kwargs):
-        super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
-
+        self.rnn_type = kwargs.get('rnn_type')
         encoder = kwargs.get('encoder')
         hidden_size = kwargs.get('hidden_size')
+
+        if kwargs.get('attention') == 'hard':
+            kwargs['attention'] = 'bahdanau'  # use bahdanau attention to create Decoder
+            super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
+            self.attention = HardAttention(hidden_size=hidden_size, key_size=encoder.output_size, query_size=hidden_size)  # replace bahdanau attention with hard attention
+        else:
+            super(CustomRecurrentDecoder, self).__init__(*args, **kwargs)
 
         self.bridge_layer_h = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
         self.bridge_layer_c = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
 
-        if kwargs.get('attention') == 'hard':
-            self.attention = HardAttention(hidden_size=hidden_size, key_size=encoder.output_size, query_size=hidden_size)
-
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
         hidden_h = torch.tanh(self.bridge_layer_h(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
-        hidden_c = torch.tanh(self.bridge_layer_c(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
-
-        return hidden_h, hidden_c
+        if self.rnn_type == "lstm":
+            hidden_c = torch.tanh(self.bridge_layer_c(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
+            return hidden_h, hidden_c
+        else:
+            return hidden_h
 
     def forward(self,
                 trg_embed: Tensor,
@@ -98,6 +103,7 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         k = kwargs.get('k', 1)
         batch_no = kwargs.get('batch_no', 0)
         embeddings = kwargs.get('embeddings', None)
+        scheduled_sampling_fixed = kwargs.get('scheduled_sampling_fixed', None),
 
         # shape checks
         self._check_shapes_input_forward(
@@ -132,8 +138,12 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         # unroll the decoder RNN for `unroll_steps` steps
         for i in range(unroll_steps):
             epsilon = 1
-            if scheduled_sampling and i > 0:
-                epsilon = k / (k + math.exp(batch_no / k))
+            if scheduled_sampling and i > 0:  # first word has to be <s>
+                if scheduled_sampling_fixed:
+                    epsilon = scheduled_sampling_fixed
+                else:
+                    epsilon = k / (k + math.exp(batch_no / k))
+
             if random.uniform(0, 1) <= epsilon:
                 prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             else:

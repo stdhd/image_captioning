@@ -53,7 +53,7 @@ class Tensorboard:
             prediction, attention_scores = model.predict(dataset, img, max_output_length, beam_size, beam_alpha)
             decoded_prediction = dataset.corpus.vocab.arrays_to_sentences(prediction)[0]
             self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(decoded_prediction), global_step)
-            # visualize_attention(img.squeeze(0), decoded_prediction, attention_scores[0], dataset.max_length, f'{self.log_dir}/{image_idx}-step_{global_step:03d}.png')
+            visualize_attention(img.squeeze(0), decoded_prediction, attention_scores[0], dataset.max_length, f'{self.log_dir}/{image_idx}-step_{global_step:03d}.png')
         self.writer.flush()
 
 

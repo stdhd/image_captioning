@@ -1,7 +1,6 @@
 import itertools
 import os
 from collections import defaultdict, Counter
-from functools import lru_cache
 from typing import List
 
 from PIL import Image
@@ -9,7 +8,7 @@ from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
 from joeynmt.vocabulary import Vocabulary
 from torch.utils.data import Dataset
 from torchtext import data
-
+from tqdm import tqdm, trange
 
 class Flickr8k(Dataset):
 
@@ -92,10 +91,9 @@ class Flickr8k(Dataset):
         """
         self.corpus.vocab = corpus_vocab
 
-    def set_encoder(self, encoder):
-        self.encoder = encoder
+    def get_corpus(self):
+        return self.corpus
 
-    @lru_cache(maxsize=None)
     def __getitem__(self, index):
         """
         Get data from dataset on index position
@@ -111,7 +109,7 @@ class Flickr8k(Dataset):
 
         # Captions, for image
         caption = self.corpus.numericalize([self.idx2caption[index]]).squeeze()
-        return self.encoder(img.unsqueeze(0).cuda()).squeeze(0).detach().cpu(), caption, image_name
+        return img, caption, image_name
 
     def get_all_references_for_image_name(self, image_name: str):
         """
@@ -144,3 +142,32 @@ def sort_and_cut(counter: Counter, limit: int) -> List[str]:
     tokens_and_frequencies.sort(key=lambda tup: tup[1], reverse=True)
     vocab_tokens = [i[0] for i in tokens_and_frequencies[:limit]]
     return vocab_tokens
+
+
+def shrink_embeddings():
+
+    with open("embeddings/glove.6B.300d.txt") as file:
+        lines = file.read().splitlines()
+
+    needed_tokens = []
+    with open("data/Flickr8k.token.txt") as file:
+        annotations = file.read().splitlines()
+        for annotation in annotations:
+            _, caption = annotation.split('\t')
+            caption_tokens = [token.lower() for token in caption.split(" ")]
+            needed_tokens.extend(caption_tokens)
+
+    needed_tokens_set = set(needed_tokens)
+
+    result = []
+    result_words = []
+    for idx, line in enumerate(tqdm(lines)):
+        values = line.split()
+        word = values[0]
+        if word in needed_tokens_set:
+            result.append(line)
+            result_words.append(word)
+
+    print(len(result), len(needed_tokens_set))
+
+    print(needed_tokens_set - set(result_words))

@@ -1,6 +1,7 @@
-import sys
+import os
 from typing import Tuple
 
+import numpy as np
 import torch
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
@@ -14,9 +15,9 @@ from tqdm import tqdm, trange
 from custom_decoder import CustomRecurrentDecoder
 from data import Flickr8k
 from model import Image2Caption, Encoder
+from pretrained_embeddings import PretrainedEmbeddings
 from visualize import Tensorboard
 from yaml_parser import parse_yaml
-import numpy as np
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -33,12 +34,12 @@ def clip_gradient(optimizer, grad_clip):
                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
-def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption, Encoder]:
+def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedEmbeddings) -> Tuple[Embeddings, Image2Caption]:
     encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
-    vocab_size = len(data.corpus.vocab.itos)
+    vocab_size = len(data.corpus.vocab.itos) if not params.get('embed_pretrained', False) else 300
     decoder = CustomRecurrentDecoder(
         rnn_type=params.get('rnn_type'),
-        emb_size=params['embed_size'],
+        emb_size=params['embed_size'] if not params.get('embed_pretrained', False) else 300,
         hidden_size=params['hidden_size'],
         encoder=encoder,
         vocab_size=vocab_size,
@@ -49,24 +50,36 @@ def setup_model(params: dict, data: Flickr8k) -> Tuple[Embeddings, Image2Caption
         num_layers=params.get('decoder-num_layers', 1)
     )
 
-    embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'], dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device), encoder
+    if params.get('embed_pretrained', False):
+        embeddings = pretrained_embeddings
+    else:
+        embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
+
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'],
+                                     dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device)
+
+
+def get_unroll_steps(unroll_steps: str, labels) -> int:
+    if unroll_steps_type == 'full_length':
+        return labels.shape[1]
+    elif unroll_steps_type == 'batch_length':
+        return np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
+    elif unroll_steps == 'batch_number':
+        return int(2 + np.ceil(epoch / 2))
 
 
 if __name__ == '__main__':
-    argv = sys.argv[1:]
-
-    if len(argv) > 0:
-        model_name = argv[0]
-    else:
-        model_name = f'paper-reference-soft_att'
+    model_name = f'default'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')
 
     batch_size = params['batch_size']
+    unroll_steps_type = params.get('unroll_steps_type', 'full_length')  # batch_length, batch_number
 
     grad_clip = params.get('grad_clip', None)
+
+    embed_pretrained = params.get('embed_pretrained', False)
 
     normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     transform = T.Compose([T.Resize(256), T.CenterCrop(224), T.ToTensor(), normalize])
@@ -76,21 +89,28 @@ if __name__ == '__main__':
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform_aug, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     else:
         data_train = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.trainImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
+
+    if embed_pretrained:
+        pretrained_embeds = PretrainedEmbeddings("embeddings/glove_shrinked.txt", data_train.get_corpus(), device)
+    else:
+        pretrained_embeds = None
+
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
 
-    embeddings, model, encoder = setup_model(params, data_train)
-
-    data_train.set_encoder(encoder)
-    data_dev.set_encoder(encoder)
+    embeddings, model = setup_model(params, data_train, pretrained_embeds)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
-    # tensorboard.add_images_with_ground_truth(data_dev)
+    tensorboard.add_images_with_ground_truth(data_dev)
 
-    criterion = nn.CrossEntropyLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
+    if embed_pretrained:
+        criterion = nn.CosineEmbeddingLoss()
+    else:
+        criterion = nn.CrossEntropyLoss(ignore_index=data_train.corpus.vocab.stoi[PAD_TOKEN])
+
     optimizer = optim.Adam(model.parameters(), lr=float(params['learning_rate']), weight_decay=float(params['weight_decay']))
     last_validation_score = float('-inf')
 
@@ -110,8 +130,7 @@ if __name__ == '__main__':
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels, _ = data
-            unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
-
+            unroll_steps = get_unroll_steps(unroll_steps_type, labels)
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -126,8 +145,13 @@ if __name__ == '__main__':
                                              embeddings=embeddings,
                                              unroll_steps=unroll_steps)
 
-            targets = labels[:, 1:unroll_steps].contiguous().view(-1)
-            loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
+            if embed_pretrained:
+                targets = labels[:, 1:unroll_steps].contiguous()
+                loss = criterion(outputs, pretrained_embeds(targets.long()), torch.tensor([1]).float().to(device))
+            else:
+                targets = labels[:, 1:unroll_steps].contiguous().view(-1)
+                loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
+
             loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
             if grad_clip:
@@ -151,7 +175,7 @@ if __name__ == '__main__':
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
-                unroll_steps = np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
+                unroll_steps = get_unroll_steps(unroll_steps_type, labels)
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 

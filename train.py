@@ -3,6 +3,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from efficientnet_pytorch import EfficientNet
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
 from torch import optim, nn
@@ -35,7 +36,15 @@ def clip_gradient(optimizer, grad_clip):
 
 
 def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedEmbeddings) -> Tuple[Embeddings, Image2Caption]:
-    encoder = Encoder(getattr(models, params.get('encoder')), pretrained=True)
+    def get_base_arch(encoder_name):
+        if 'efficientnet' in encoder_name:
+            base_arch = EfficientNet.from_pretrained(encoder_name).to(device)
+            base_arch.__name__ = encoder_name
+            return base_arch
+        else:
+            return getattr(models, params.get('encoder'))
+
+    encoder = Encoder(get_base_arch(params.get('encoder')), pretrained=True)
     vocab_size = len(data.corpus.vocab.itos) if not params.get('embed_pretrained', False) else 300
     decoder = CustomRecurrentDecoder(
         rnn_type=params.get('rnn_type'),

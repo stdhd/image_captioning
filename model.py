@@ -118,7 +118,7 @@ class Encoder(nn.Module):
 
         if any(word in base_arch.__name__ for word in ['vgg', 'mobilenet']):
             self.features = loaded_model.features[:-1]  # drop MaxPool2d-layer
-        elif 'resnet' in base_arch.__name__:
+        elif any(word in base_arch.__name__ for word in ['resnet', 'resnext']):
             self.features = nn.Sequential(*list(loaded_model.children())[:-2])  # drop AdaptiveAvgPool2d and Linear-layer
         # elif 'inception' in base_arch.__name__:
         #     self.features = nn.Sequential(*list(loaded_model.children())[:-3])  # drop AdaptiveAvgPool2d, Dropout and Linear-layer

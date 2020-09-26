@@ -1,12 +1,13 @@
-import os
-from typing import Tuple
+from typing import Tuple, Callable
 
 import numpy as np
 import torch
 from efficientnet_pytorch import EfficientNet
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.embeddings import Embeddings
+from joeynmt.helpers import ConfigurationError
 from torch import optim, nn
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchtext.data import bleu_score
 from torchvision import models
@@ -23,7 +24,7 @@ from yaml_parser import parse_yaml
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def clip_gradient(optimizer, grad_clip):
+def clip_gradient(optimizer: Optimizer, grad_clip: float) -> None:
     """
     Clips gradients computed during backpropagation to avoid explosion of gradients.
     :param optimizer: optimizer with the gradients to be clipped
@@ -36,15 +37,30 @@ def clip_gradient(optimizer, grad_clip):
 
 
 def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedEmbeddings) -> Tuple[Embeddings, Image2Caption]:
-    def get_base_arch(encoder_name):
+    """
+    setup embeddings and seq2seq model
+
+    :param params: params from the yaml file
+    :param data: Flickr Dataset class
+    :param pretrained_embeddings: PretrainedEmbeddings if selected in yaml
+    :return: word embeddings, seq2seq model
+    """
+
+    def get_base_arch(encoder_name: str) -> Callable:
+        """
+        wrapper for model, as EfficientNet does not support __name__
+
+        :param encoder_name: name of the encoder to load
+        :return: base_arch
+        """
         if 'efficientnet' in encoder_name:
             base_arch = EfficientNet.from_pretrained(encoder_name).to(device)
             base_arch.__name__ = encoder_name
             return base_arch
         else:
-            return getattr(models, params.get('encoder'))
+            return getattr(models, encoder_name)
 
-    encoder = Encoder(get_base_arch(params.get('encoder')), pretrained=True)
+    encoder = Encoder(get_base_arch(params.get('encoder')), device, pretrained=True)
     vocab_size = len(data.corpus.vocab.itos) if not params.get('embed_pretrained', False) else 300
     decoder = CustomRecurrentDecoder(
         rnn_type=params.get('rnn_type'),
@@ -64,17 +80,26 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
     else:
         embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
 
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, freeze_encoder=params['freeze_encoder'],
-                                     dropout_after_encoder=params.get('dropout_after_encoder', 0)).to(device)
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, params['freeze_encoder'], params.get('dropout_after_encoder', 0)).to(device)
 
 
-def get_unroll_steps(unroll_steps: str, labels) -> int:
+def get_unroll_steps(unroll_steps_type: str, labels: torch.Tensor, epoch: int) -> int:
+    """
+    get number of unroll_steps depending on unroll_steps_type
+
+    :param unroll_steps_type: type from yaml file
+    :param labels: y values (ground truth)
+    :param epoch: current epoch
+    :return: number of steps to unroll the RNN
+    """
     if unroll_steps_type == 'full_length':
         return labels.shape[1]
     elif unroll_steps_type == 'batch_length':
         return np.max(np.argwhere(labels.detach().numpy() == 3)[:, 1])
-    elif unroll_steps == 'batch_number':
+    elif unroll_steps_type == 'batch_number':
         return int(2 + np.ceil(epoch / 2))
+    else:
+        raise ConfigurationError('Unknown unroll_steps_type.')
 
 
 if __name__ == '__main__':
@@ -104,11 +129,11 @@ if __name__ == '__main__':
     else:
         pretrained_embeds = None
 
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count())  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count())  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
 
     embeddings, model = setup_model(params, data_train, pretrained_embeds)
 
@@ -139,7 +164,7 @@ if __name__ == '__main__':
         for i, data in enumerate(tqdm(dataloader_train)):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels, _ = data
-            unroll_steps = get_unroll_steps(unroll_steps_type, labels)
+            unroll_steps = get_unroll_steps(unroll_steps_type, labels, epoch)
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -184,7 +209,7 @@ if __name__ == '__main__':
             for data in tqdm(dataloader_dev):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels, image_names = data
-                unroll_steps = get_unroll_steps(unroll_steps_type, labels)
+                unroll_steps = get_unroll_steps(unroll_steps_type, labels, epoch)
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 

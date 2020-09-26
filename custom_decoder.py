@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -11,10 +11,14 @@ from torch.distributions import Categorical
 
 
 class HardAttention(BahdanauAttention):
+    """
+    hard attention only uses `distribution` as weights to sample one `values` element
+    """
+
     def __init__(self, *args, **kwargs):
         super(HardAttention, self).__init__(*args, **kwargs)
 
-    def forward(self, query: Tensor = None, mask: Tensor = None, values: Tensor = None):
+    def forward(self, query: Tensor = None, mask: Tensor = None, values: Tensor = None) -> Tuple[Tensor, Tensor]:
         _, alphas = super(HardAttention, self).forward(query, mask, values)
         distribution = Categorical(logits=alphas)
         alphas_hard = F.one_hot(distribution.sample(), num_classes=alphas.shape[-1]).float()
@@ -23,6 +27,10 @@ class HardAttention(BahdanauAttention):
 
 
 class CustomRecurrentDecoder(RecurrentDecoder):
+    """
+    extension of the `RecurrentDecoder`, that supports `HardAttention` and allows for individual NNs for h an c
+    """
+
     def __init__(self, *args, **kwargs):
         self.rnn_type = kwargs.get('rnn_type')
         encoder = kwargs.get('encoder')
@@ -39,6 +47,15 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         self.bridge_layer_c = torch.nn.Linear(encoder.output_size, hidden_size, bias=True)
 
     def _init_hidden(self, encoder_final: Tensor = None) -> (Tensor, Optional[Tensor]):
+        """
+        calculate initial decoder state, in contrast to the `RecurrentDecoder` function two different NNs are used to
+        calculate hidden_h  and hidden_c as proposed in https://arxiv.org/abs/1502.03044
+
+        :param encoder_final: final state from the last layer of the encoder,
+            shape (batch_size, encoder_hidden_size)
+        :return: hidden state if GRU, (hidden state, memory cell) if LSTM,
+            shape (batch_size, hidden_size)
+        """
         hidden_h = torch.tanh(self.bridge_layer_h(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)
         if self.rnn_type == "lstm":
             hidden_c = torch.tanh(self.bridge_layer_c(encoder_final)).unsqueeze(0).repeat(self.num_layers, 1, 1)

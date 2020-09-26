@@ -10,8 +10,6 @@ from torch import Tensor
 
 from data import Flickr8k
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 
 class Image2Caption(nn.Module):
     """
@@ -105,10 +103,11 @@ class Image2Caption(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, base_arch: Callable, pretrained=True):
+    def __init__(self, base_arch: Callable, device: str, pretrained: bool = True):
         """
         Encoder using given classification model as feature extractor
         :param base_arch: Constructor of torchvision.models
+        :param device: torch.device('cpu') or torch.device('cuda') for example
         :param pretrained: Load pre-trained model state
         """
         super(Encoder, self).__init__()

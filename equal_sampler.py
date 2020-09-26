@@ -1,12 +1,13 @@
 import random
+
 from torch.utils.data import Sampler
 
 from data import Flickr8k
 
 
 class EqualBatchSampler(Sampler):
-    r"""Get mini-batch of indices, while sequences have the same size in each batch.
-
+    """
+    Get mini-batch of indices, while sequences have the same size in each batch.
     """
 
     def __init__(self, batch_size, drop_last, data_source: Flickr8k):
@@ -36,7 +37,7 @@ class EqualBatchSampler(Sampler):
         if len(batch) > 0 and not self.drop_last:
             yield batch
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self.drop_last:
             return len(self.data_source) // self.batch_size
         else:

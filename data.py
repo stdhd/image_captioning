@@ -2,7 +2,7 @@ import itertools
 import os
 from collections import defaultdict, Counter
 from functools import lru_cache
-from typing import List
+from typing import List, Tuple
 
 import torch
 from PIL import Image

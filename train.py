@@ -1,9 +1,11 @@
+import os
 from typing import Tuple, Callable
 
 import numpy as np
 import torch
 from efficientnet_pytorch import EfficientNet
 from joeynmt.constants import PAD_TOKEN
+from joeynmt.decoders import TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.helpers import ConfigurationError
 from torch import optim, nn
@@ -62,7 +64,13 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
 
     encoder = Encoder(get_base_arch(params.get('encoder')), device, pretrained=True)
     vocab_size = len(data.corpus.vocab.itos) if not params.get('embed_pretrained', False) else 300
-    decoder = CustomRecurrentDecoder(
+
+    if params.get('decoder_type', 'RecurrentDecoder') == 'RecurrentDecoder':
+        decoder_type = CustomRecurrentDecoder
+    else:
+        decoder_type = TransformerDecoder
+
+    decoder = decoder_type(
         rnn_type=params.get('rnn_type'),
         emb_size=params['embed_size'] if not params.get('embed_pretrained', False) else 300,
         hidden_size=params['hidden_size'],
@@ -129,12 +137,13 @@ if __name__ == '__main__':
     else:
         pretrained_embeds = None
 
-    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=0)  # set num_workers=0 for debugging
+    dataloader_train = DataLoader(data_train, batch_size, shuffle=True, num_workers=os.cpu_count)  # set num_workers=0 for debugging
 
     data_dev = Flickr8k('data/Flicker8k_Dataset', 'data/Flickr_8k.devImages.txt', 'data/Flickr8k.token.txt', transform=transform, max_vocab_size=params['max_vocab_size'], all_lower=params['all_lower'])
     data_dev.set_corpus_vocab(data_train.get_corpus_vocab())
-    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=0)  # os.cpu_count()
+    dataloader_dev = DataLoader(data_dev, batch_size, num_workers=os.cpu_count)  # os.cpu_count()
 
+    decoder_type = params.get('decoder_type', 'RecurrentDecoder')
     embeddings, model = setup_model(params, data_train, pretrained_embeds)
 
     tensorboard = Tensorboard(log_dir=f'runs/{model_name}', device=device)
@@ -177,7 +186,8 @@ if __name__ == '__main__':
                                              batch_no=epoch + i / len(dataloader_train),
                                              k=params['scheduled_sampling_k'],
                                              embeddings=embeddings,
-                                             unroll_steps=unroll_steps)
+                                             unroll_steps=unroll_steps,
+                                             decoder_type=decoder_type)
 
             if embed_pretrained:
                 targets = labels[:, 1:unroll_steps].contiguous()
@@ -186,7 +196,8 @@ if __name__ == '__main__':
                 targets = labels[:, 1:unroll_steps].contiguous().view(-1)
                 loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
 
-            loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
+            if att_probs is not None:  # only with RecurrentDecoder, TransformerDecoder does not have attention
+                loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
             loss.backward()
             if grad_clip:
                 clip_gradient(optimizer, grad_clip)
@@ -214,10 +225,11 @@ if __name__ == '__main__':
                 labels = labels.to(device)
 
                 # forward
-                outputs, _, att_probs, _ = model(inputs, labels, unroll_steps=unroll_steps)
+                outputs, _, att_probs, _ = model(inputs, labels, unroll_steps=unroll_steps, decoder_type=decoder_type)
                 targets = labels[:, 1:unroll_steps].contiguous().view(-1)  # shifted by one because of BOS
                 loss = criterion(outputs.contiguous().view(-1, outputs.shape[-1]), targets.long())
-                loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
+                if att_probs is not None:  # only with RecurrentDecoder, TransformerDecoder does not have attention
+                    loss += 1. * ((1. - att_probs.sum(dim=1)) ** 2).mean()  # Doubly stochastic attention regularization
                 loss_sum += loss.item()
 
                 for beam_size in range(1, len(bleu_1) + 1):

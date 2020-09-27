@@ -54,11 +54,14 @@ class Image2Caption(nn.Module):
 
         x = self.encoder(x)
         x = self.dropout_after_encoder_layer(x)
+        if kwargs.get('decoder_type') == 'TransformerDecoder':  # because TransformerDecoder does not use unroll_steps
+            y = y[:, :-1]  # </s> not needed as input
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed=self.embeddings(y.long()),
             encoder_output=x,
             encoder_hidden=x.mean(dim=1),
-            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+            src_mask=torch.ones(x.shape[0], 1, x.shape[1]).bool().to(self.device),
+            trg_mask=torch.ones(y.shape[0], 1, y.shape[1]).bool().to(self.device),
             **kwargs
         )
 
@@ -81,7 +84,7 @@ class Image2Caption(nn.Module):
         if beam_size < 2:
             output, attention_scores = greedy(
                 encoder_output=x, encoder_hidden=x.mean(dim=1),
-                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).bool().to(self.device),
                 bos_index=data.corpus.vocab.stoi[BOS_TOKEN], eos_index=data.corpus.vocab.stoi[EOS_TOKEN],
                 embed=self.embeddings,
                 decoder=self.decoder,
@@ -91,7 +94,7 @@ class Image2Caption(nn.Module):
             output, attention_scores = beam_search(
                 size=beam_size,
                 encoder_output=x, encoder_hidden=x.mean(dim=1),
-                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).byte().to(self.device),
+                src_mask=torch.ones(x.shape[0], 1, x.shape[1]).bool().to(self.device),
                 bos_index=data.corpus.vocab.stoi[BOS_TOKEN], eos_index=data.corpus.vocab.stoi[EOS_TOKEN], pad_index=data.corpus.vocab.stoi[PAD_TOKEN],
                 embed=self.embeddings,
                 decoder=self.decoder,

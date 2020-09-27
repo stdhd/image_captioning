@@ -1,6 +1,7 @@
-import yaml
 import os
 from datetime import datetime
+
+import yaml
 
 
 def parse_yaml(model_name: str, file_path: str, create_folder: bool = True) -> dict:

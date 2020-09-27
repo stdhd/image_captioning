@@ -88,7 +88,7 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
     else:
         embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
 
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, params['freeze_encoder'], params.get('dropout_after_encoder', 0)).to(device)
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, params['freeze_encoder'], params.get('dropout_after_encoder', 0), params['hidden_size']).to(device)
 
 
 def get_unroll_steps(unroll_steps_type: str, labels: torch.Tensor, epoch: int) -> int:
@@ -233,7 +233,7 @@ if __name__ == '__main__':
                 loss_sum += loss.item()
 
                 for beam_size in range(1, len(bleu_1) + 1):
-                    prediction, _ = model.predict(data_dev, inputs, data_dev.max_length, beam_size)
+                    prediction, _ = model.predict(data_dev, inputs, data_dev.max_length, beam_size, decoder_type=decoder_type)
                     decoded_prediction = data_dev.corpus.vocab.arrays_to_sentences(prediction)
 
                     decoded_references = []
@@ -255,7 +255,7 @@ if __name__ == '__main__':
                 tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-3', bleu_3[idx] / len(dataloader_dev), global_step)
                 tensorboard.writer.add_scalar(f'BEAM-{idx + 1}/BLEU-4', bleu_4[idx] / len(dataloader_dev), global_step)
             # Add predicted text to board
-            tensorboard.add_predicted_text(global_step, data_dev, model, data_dev.max_length)
+            tensorboard.add_predicted_text(global_step, data_dev, model, data_dev.max_length, decoder_type=decoder_type)
             tensorboard.writer.flush()
 
             # Save model, if score got better

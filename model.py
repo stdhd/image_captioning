@@ -16,7 +16,7 @@ class Image2Caption(nn.Module):
     Class combining decoder and encoder
     """
 
-    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder=0):
+    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder: int = 0, hidden_size: int = 512):
         """
         Combined encoder-decoder model
         :param encoder: nn.Module object representing the encoder
@@ -32,6 +32,8 @@ class Image2Caption(nn.Module):
         self.embeddings = embeddings
         self.device = device
         self.dropout_after_encoder_layer = nn.Dropout(dropout_after_encoder)
+
+        self.bridge_layer = nn.Linear(encoder.output_size, hidden_size, bias=True)
 
         # In case we do not want to continue training the encoder, gradient calculation is disabled for the encoder
         if freeze_encoder:
@@ -56,6 +58,7 @@ class Image2Caption(nn.Module):
         x = self.dropout_after_encoder_layer(x)
         if kwargs.get('decoder_type') == 'TransformerDecoder':  # because TransformerDecoder does not use unroll_steps
             y = y[:, :-1]  # </s> not needed as input
+            x = self.bridge_layer(x)
         outputs, hidden, att_probs, att_vectors = self.decoder(
             trg_embed=self.embeddings(y.long()),
             encoder_output=x,
@@ -67,7 +70,7 @@ class Image2Caption(nn.Module):
 
         return outputs, hidden, att_probs, att_vectors
 
-    def predict(self, data: Flickr8k, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
+    def predict(self, data: Flickr8k, x: Tensor, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4, **kwargs):
         """
         Predict cpation of given images, for inference only. This method allows beam search.
         :param data: Flickr8k object
@@ -80,6 +83,8 @@ class Image2Caption(nn.Module):
             - attention_scores: Attention probabilities of whole unrolling (batch_size, unroll_steps, src_length)
         """
         # x = self.encoder(x)
+        if kwargs.get('decoder_type') == 'TransformerDecoder':  # because TransformerDecoder does not use unroll_steps
+            x = self.bridge_layer(x)
 
         if beam_size < 2:
             output, attention_scores = greedy(

@@ -52,11 +52,11 @@ class Tensorboard:
             self.writer.add_text(f'image-{image_idx}', '    ' + ' | '.join([' '.join(sentence) for sentence in dataset.corpus.vocab.arrays_to_sentences(dataset.get_all_references_for_image_name(image_name))]), -1)
         self.writer.flush()
 
-    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4) -> None:
+    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4, **kwargs) -> None:
         for image_idx in self.image_idxs:
             img, _, _ = dataset[image_idx]
             img = img.unsqueeze(0).to(self.device)
-            prediction, attention_scores = model.predict(dataset, img, max_output_length, beam_size, beam_alpha)
+            prediction, attention_scores = model.predict(dataset, img, max_output_length, beam_size, beam_alpha, **kwargs)
             decoded_prediction = dataset.corpus.vocab.arrays_to_sentences(prediction)[0]
             self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(decoded_prediction), global_step)
             if attention_scores is not None:  # only with RecurrentDecoder, TransformerDecoder does not have attention

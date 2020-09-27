@@ -247,12 +247,21 @@ if __name__ == '__main__':
             tensorboard.writer.flush()
 
             # Save model, if score got better
-            compared_score = bleu_1[0] / len(dataloader_dev)
-            if last_validation_score < compared_score:
-                last_validation_score = compared_score
+            saved_model = params.get('save_model', 'every')
+            if saved_model == 'improvement':
+                compared_score = bleu_1[0] / len(dataloader_dev)
+                if last_validation_score < compared_score:
+                    last_validation_score = compared_score
+                    torch.save({
+                        'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'loss': loss_sum / len(dataloader_dev),
+                    }, f'saved_models/{model_name}-bleu_1-{last_validation_score}.pth')
+            else:
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': loss_sum / len(dataloader_dev),
-                }, f'saved_models/{model_name}-bleu_1-{last_validation_score}.pth')
+                }, f'saved_models/{model_name}-epoch={epoch}.pth')

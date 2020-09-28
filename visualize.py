@@ -13,10 +13,10 @@ from model import Image2Caption
 
 
 class NormalizeInverse(transforms.Normalize):
-    '''
+    """
     Undoes the normalization and returns the reconstructed images in the input domain.
     copied from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/8
-    '''
+    """
 
     def __init__(self, mean, std):
         mean = torch.as_tensor(mean)
@@ -25,7 +25,7 @@ class NormalizeInverse(transforms.Normalize):
         mean_inv = -mean * std_inv
         super().__init__(mean=mean_inv, std=std_inv)
 
-    def __call__(self, tensor):
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
         return super().__call__(tensor.clone())
 
 
@@ -33,31 +33,49 @@ normalize_inverse = NormalizeInverse(mean=[0.485, 0.456, 0.406], std=[0.229, 0.2
 
 
 class Tensorboard:
-    def __init__(self, log_dir: str = f'runs/image_captioning_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}', image_idxs=[7, 42, 128, 512, 1337], device: str = 'cpu'):
+    """
+    Tensorboard helper class
+    """
+
+    def __init__(self, log_dir: str = f'runs/image_captioning_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}', image_idxs: List[int] = None, device: str = 'cpu') -> None:
+        if image_idxs is None:
+            image_idxs = [7, 42, 128, 512, 1337]
         self.log_dir = log_dir
         self.writer = SummaryWriter(log_dir)
         self.image_idxs = image_idxs
         self.device = device
 
-    def add_images_with_ground_truth(self, dataset: Flickr8k):
+    def add_images_with_ground_truth(self, dataset: Flickr8k) -> None:
         for image_idx in self.image_idxs:
             img, caption, image_name = dataset[image_idx]
             self.writer.add_image(f'image-{image_idx}', normalize_inverse(img).cpu().detach().numpy())
             self.writer.add_text(f'image-{image_idx}', '    ' + ' | '.join([' '.join(sentence) for sentence in dataset.corpus.vocab.arrays_to_sentences(dataset.get_all_references_for_image_name(image_name))]), -1)
         self.writer.flush()
 
-    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4):
+    def add_predicted_text(self, global_step: int, dataset: Flickr8k, model: Image2Caption, max_output_length: int, beam_size: int = 1, beam_alpha: float = 0.4, **kwargs) -> None:
         for image_idx in self.image_idxs:
             img, _, _ = dataset[image_idx]
             img = img.unsqueeze(0).to(self.device)
-            prediction, attention_scores = model.predict(dataset, img, max_output_length, beam_size, beam_alpha)
+            prediction, attention_scores = model.predict(dataset, img, max_output_length, beam_size, beam_alpha, **kwargs)
             decoded_prediction = dataset.corpus.vocab.arrays_to_sentences(prediction)[0]
             self.writer.add_text(f'image-{image_idx}', '    ' + ' '.join(decoded_prediction), global_step)
-            visualize_attention(img.squeeze(0), decoded_prediction, attention_scores[0], dataset.max_length, f'{self.log_dir}/{image_idx}-step_{global_step:03d}.png')
+            if attention_scores is not None:  # only with RecurrentDecoder, TransformerDecoder does not have attention
+                visualize_attention(img.squeeze(0), decoded_prediction, attention_scores[0], dataset.max_length, f'{self.log_dir}/{image_idx}-step_{global_step:03d}.png')
         self.writer.flush()
 
 
-def visualize_attention(image: torch.Tensor, word_seq: List[str], attention_scores: np.ndarray, max_length: int, file_name: str):
+def visualize_attention(image: torch.Tensor, word_seq: List[str], attention_scores: np.ndarray, max_length: int, file_name: str) -> None:
+    """
+    Generate one image out of all predicted word with their respective attention as an overlay.
+
+    :param image: original image used for the prediction
+    :param word_seq: predicted word sequence
+    :param attention_scores: attention scores for eachpredictionn
+    :param max_length: max_length of predicted words (this is to keep all images the same size)
+    :param file_name: file_name where to save the image to
+    :return:
+    """
+
     image = normalize_inverse(image).cpu().detach().numpy()
     image = (image.transpose((1, 2, 0)) * 225).astype(np.uint8)
 

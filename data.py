@@ -1,16 +1,21 @@
 import itertools
 import os
 from collections import defaultdict, Counter
-from typing import List
+from typing import List, Tuple
 
+import torch
 from PIL import Image
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, UNK_TOKEN
 from joeynmt.vocabulary import Vocabulary
 from torch.utils.data import Dataset
 from torchtext import data
-from tqdm import tqdm, trange
+from tqdm import tqdm
+
 
 class Flickr8k(Dataset):
+    """
+    Custom Dataset class for the Flickr Dataset
+    """
 
     def __init__(self, data_path: str, split_file_name: str, ann_file_name: str, transform=None, fix_length: int = None, max_vocab_size: int = None, all_lower: bool = False):
         """
@@ -39,7 +44,7 @@ class Flickr8k(Dataset):
         annotations = [line.rstrip() for line in open(ann_file_name, 'r')]
 
         valid_counter = 0
-        # Loop through alll annotations, as they are not separated per fraction (train/dev/test).
+        # Loop through all annotations, as they are not separated per fraction (train/dev/test).
         for annotation in annotations:
             image_file_name, caption = annotation.split('\t')
             # Only choose the captions for images, which are part of the current fraction defined.
@@ -74,7 +79,7 @@ class Flickr8k(Dataset):
         vocab_tokens = sort_and_cut(counter, self.max_vocab_size)
         self.corpus.vocab = Vocabulary(tokens=vocab_tokens)
 
-    def get_corpus_vocab(self):
+    def get_corpus_vocab(self) -> Vocabulary:
         """
         As the vocabulary  used for testing has to be the same as for training, this method makes it possible
         to obtain the training dataset's vocab and use it in the test dataset, as well. The purpose of this is to let
@@ -83,7 +88,7 @@ class Flickr8k(Dataset):
         """
         return self.corpus.vocab
 
-    def set_corpus_vocab(self, corpus_vocab):
+    def set_corpus_vocab(self, corpus_vocab: Vocabulary) -> None:
         """
         See get_corpus_vocab, this set function allows to change the dataset's vocabulary to the one
         used during training
@@ -94,7 +99,7 @@ class Flickr8k(Dataset):
     def get_corpus(self):
         return self.corpus
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, str]:
         """
         Get data from dataset on index position
         :param index: Index number
@@ -125,7 +130,7 @@ class Flickr8k(Dataset):
             references.append(self.corpus.numericalize([self.idx2caption[idx]]).squeeze().detach().numpy().tolist()[1:])
         return references
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.idx2caption)
 
 
@@ -145,7 +150,6 @@ def sort_and_cut(counter: Counter, limit: int) -> List[str]:
 
 
 def shrink_embeddings():
-
     with open("embeddings/glove.6B.300d.txt") as file:
         lines = file.read().splitlines()
 

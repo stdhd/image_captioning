@@ -120,7 +120,7 @@ class CustomRecurrentDecoder(RecurrentDecoder):
         k = kwargs.get('k', 1)
         batch_no = kwargs.get('batch_no', 0)
         embeddings = kwargs.get('embeddings', None)
-        scheduled_sampling_fixed = kwargs.get('scheduled_sampling_fixed', None),
+        scheduled_sampling_fixed = kwargs.get('scheduled_sampling_fixed', None)
 
         # shape checks
         self._check_shapes_input_forward(

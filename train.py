@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Tuple, Callable
 
 import numpy as np
@@ -111,7 +112,12 @@ def get_unroll_steps(unroll_steps_type: str, labels: torch.Tensor, epoch: int) -
 
 
 if __name__ == '__main__':
-    model_name = f'default'
+    argv = sys.argv[1:]
+
+    if len(argv) > 0:
+        model_name = argv[0]
+    else:
+        model_name = f'paper-reference-soft_att'
 
     params = parse_yaml(model_name, 'param')
     print(f'run {model_name} on  {torch.cuda.get_device_name()}')

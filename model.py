@@ -16,7 +16,7 @@ class Image2Caption(nn.Module):
     Class combining decoder and encoder
     """
 
-    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, dropout_after_encoder: int = 0, hidden_size: int = 512):
+    def __init__(self, encoder: nn.Module, decoder: Decoder, embeddings: Embeddings, device: str, freeze_encoder: bool = True, fine_tuning: int = None, dropout_after_encoder: int = 0, hidden_size: int = 512):
         """
         Combined encoder-decoder model
         :param encoder: nn.Module object representing the encoder
@@ -24,7 +24,9 @@ class Image2Caption(nn.Module):
         :param embeddings: joeynmt.embeddings.Embeddings object
         :param device: torch.device('cpu') or torch.device('cuda') for example
         :param freeze_encoder: If true, do not continue learning the encoder
+        :param fine_tuning: If not None decoder, embeddings and bridge_layer will be frozen and only the first fine_tuning layers of encoder will stay frozen.
         :param: dropout_after_encoder: If true, enable dropout layer between encoder and decoder
+        :param hidden_size:
         """
         super(Image2Caption, self).__init__()
         self.encoder = encoder
@@ -38,6 +40,20 @@ class Image2Caption(nn.Module):
         # In case we do not want to continue training the encoder, gradient calculation is disabled for the encoder
         if freeze_encoder:
             for param in self.encoder.parameters():
+                param.requires_grad = False
+
+        if fine_tuning is not None:
+            for child in list(self.encoder.children())[0][fine_tuning:]:
+                for param in child.parameters():
+                    param.requires_grad = True
+
+            for param in self.decoder.parameters():
+                param.requires_grad = False
+
+            for param in self.embeddings.parameters():
+                param.requires_grad = False
+
+            for param in self.bridge_layer.parameters():
                 param.requires_grad = False
 
     def forward(self, x: Tensor, y: Tensor, **kwargs) -> (Tensor, Tensor, Tensor, Tensor):

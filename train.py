@@ -88,7 +88,7 @@ def setup_model(params: dict, data: Flickr8k, pretrained_embeddings: PretrainedE
     else:
         embeddings = Embeddings(embedding_dim=params['embed_size'], vocab_size=vocab_size)
 
-    return embeddings, Image2Caption(encoder, decoder, embeddings, device, params['freeze_encoder'], params.get('dropout_after_encoder', 0), params['hidden_size']).to(device)
+    return embeddings, Image2Caption(encoder, decoder, embeddings, device, params['freeze_encoder'], params.get('fine_tuning', None), params.get('dropout_after_encoder', 0), params['hidden_size']).to(device)
 
 
 def get_unroll_steps(unroll_steps_type: str, labels: torch.Tensor, epoch: int) -> int:

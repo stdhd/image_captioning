@@ -1,6 +1,6 @@
 # What is this about?
 This repository has been created to enhance collaboration and document the results of the project in the lecture "Neural Networks and Sequence to Sequence Learning".
-The aim is to implement image captioning using primarily the pytorch machine translation framework JoeyNMT.
+The aim is to implement image captioning using primarily the pytorch machine translation framework [JoeyNMT](https://github.com/joeynmt/joeynmt).
 As baseline model we implement the approach of [Xu et al. (2015)](http://arxiv.org/abs/1502.03044).
 
 # Model Architecture

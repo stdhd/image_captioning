@@ -4,7 +4,7 @@ The aim is to implement image captioning using primarily the pytorch machine tra
 As baseline model we implement the approach of [Xu et al. (2015)](http://arxiv.org/abs/1502.03044).
 
 # Model architecture
-Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder network to retrieve features from images. The feature vector is then used to initialze a LSTM decoder, which unrolls a generated caption. For each step, an attention mechanism is apllied on the feature vector. The attention mechanism is illustrated below using a real example and how our implementation attends to different areas of the image during unrolling.  
+Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder network to retrieve features from images. The feature vector is then used to initialze a LSTM decoder, which unrolls a generated caption. For each step, an attention mechanism is applied on the feature vector. The attention mechanism is illustrated below using a real example and shows how our implementation attends to different areas of the image during unrolling.  
 ![Unrolling](unroll-min.png)
 
 # Usage

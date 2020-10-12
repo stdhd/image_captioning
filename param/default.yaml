@@ -1,20 +1,21 @@
 {
-  n_epochs: 10,               # number of training epochs
-  learning_rate: 1e-4,        # Learning rate   
-  weight_decay: 0,            # L2 weight regularization
-  embed_size: 512,            # size of the embedding vectors
-  hidden_size: 512,           # size of the RNN hidden state
-  batch_size: 16,             # number of samples/batch during training
-  hidden_dropout: 0.5,        # dropout applied on the decoder hidden state
-  emb_dropout: 0.5,           # dropout applied on the embedding of the last sequence token
-  grad_clip: 5.,              # clip gradient between [-5,5]
-  scheduled_sampling: False,  # enable schedules sampling
-  scheduled_sampling_k: 1,    # set constatn k for inverse sigmoid function, which represents the increasing ratio of self-predicted last tokens
-  max_vocab_size: 10_000,     # number of tokens to be inclueded in vocubulary - if actual number exceeds this value, only the most-occuring tokens are considered
-  encoder: 'vgg16',           # encoder network, options: efficientnet and all torchvision models, e.g. {vgg16, alexnet, resnet18, ...}
-  rnn_type: 'lstm',           # type of the recurrent decoder: {lstm, gru}
-  attention: 'bahdanau',      # type of decoder attention: {bahdanau, hard}
-  freeze_encoder: True,       # true, if encoder should not be trained during training of the entire model
-  all_lower: False,           # true, if all tokens are considered in lowercase
-  decoder-num_layers: 1       # number of layers of RNN decoder
+  n_epochs: 10,                     # number of training epochs
+  learning_rate: 1e-4,              # Learning rate   
+  weight_decay: 0,                  # L2 weight regularization
+  embed_size: 512,                  # size of the embedding vectors
+  hidden_size: 512,                 # size of the RNN hidden state
+  batch_size: 16,                   # number of samples/batch during training
+  hidden_dropout: 0.5,              # dropout applied on the decoder hidden state
+  emb_dropout: 0.5,                 # dropout applied on the embedding of the last sequence token
+  grad_clip: 5.,                    # clip gradient between [-5,5]
+  scheduled_sampling: False,        # enable schedules sampling
+  scheduled_sampling_k: 1,          # set constatn k for inverse sigmoid function, which represents the increasing ratio of self-predicted last tokens
+  max_vocab_size: 10_000,           # number of tokens to be inclueded in vocubulary - if actual number exceeds this value, only the most-occuring tokens are considered
+  encoder: 'vgg16',                 # encoder network, options: efficientnet and all torchvision models, e.g. {vgg16, alexnet, resnet18, ...}
+  rnn_type: 'lstm',                 # type of the recurrent decoder: {lstm, gru}
+  attention: 'bahdanau',            # type of decoder attention: {bahdanau, hard}
+  freeze_encoder: True,             # true, if encoder should not be trained during training of the entire model
+  all_lower: False,                 # true, if all tokens are considered in lowercase
+  decoder-num_layers: 1,            # number of layers of RNN decoder
+  decoder_type: 'RecurrentDecoder'  # or TransformerDecoder: determines whether to use RNN or Transformer instead
 }

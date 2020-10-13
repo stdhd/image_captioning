@@ -26,4 +26,4 @@ Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder 
 3. Start evaluating with ``python eval.py``. Evaluation will be done using the test split and results will be put out to the console.
 
 ## Best Model
-Our best-performing model's weights can be downloaded [here](https://drive.google.com/file/d/1xbtV0X_I9vL1Ph2YGZCIUo6VxB7ZIk0z/view?usp=sharing)
+Our best-performing model's weights can be downloaded [here](https://drive.google.com/file/d/1xbtV0X_I9vL1Ph2YGZCIUo6VxB7ZIk0z/view?usp=sharing).

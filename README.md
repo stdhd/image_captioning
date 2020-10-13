@@ -3,8 +3,8 @@ This repository has been created to enhance collaboration and document the resul
 The aim is to implement image captioning using primarily the pytorch machine translation framework [JoeyNMT](https://github.com/joeynmt/joeynmt).
 As baseline model we implement the approach of [Xu et al. (2015)](http://arxiv.org/abs/1502.03044).
 
-# Visit our demo
-You can let our model generate captions for any image [here](https://image2caption.pascalperle.de/).
+# Visit our Demo
+You can let our best-performing model generate captions for any image [here](https://image2caption.pascalperle.de/).
 
 # Model Architecture
 Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder network to retrieve features from images. The feature vector is then used to initialize a LSTM decoder, which unrolls a generated caption. For each step, an attention mechanism is applied on the feature vector. The attention mechanism is illustrated below using a real example and shows how our implementation attends to different areas of the image during unrolling.  

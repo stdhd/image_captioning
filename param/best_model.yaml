@@ -1,0 +1,21 @@
+{
+  n_epochs: 100,
+  learning_rate: 1e-4,
+  weight_decay: 1e-4,
+  embed_size: 64,
+  hidden_size: 512,
+  batch_size: 16,
+  hidden_dropout: 0.5,
+  emb_dropout: 0.5,
+  grad_clip: null,
+  scheduled_sampling: True,
+  scheduled_sampling_k: 20,
+  max_vocab_size: 10_000,
+  encoder: 'resnext101_32x8d',
+  rnn_type: 'lstm',
+  attention: 'bahdanau',
+  freeze_encoder: True,
+  all_lower: False,
+  decoder-num_layers: 1,
+  load_model: "saved_models/COMBINATION_decay=1e-4_resnext101_32x8d-no_caching_embed_size=64_scheduled_sampling_k=20-epoch=31.pth"
+}

@@ -24,3 +24,6 @@ Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder 
 1. Make sure the .pth file of the model you want to evaluate exists in the ``saved_models`` folder.
 2. In ``eval.py``, change the ``model_name`` to the name of the .pth file.
 3. Start evaluating with ``python eval.py``. Evaluation will be done using the test split and results will be put out to the console.
+
+## Best Model
+Our best-performing model's weights can be downloaded [here](https://drive.google.com/file/d/1xbtV0X_I9vL1Ph2YGZCIUo6VxB7ZIk0z/view?usp=sharing)

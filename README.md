@@ -14,9 +14,8 @@ Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder 
 3. Place the files ``Flickr8k.token.txt``, ``Flickr8k.trainImages.txt``, ``Flickr8k.devImages.txt``, ``Flickr8k.testImages.txt``, the ``ExpertAnnotations.txt`` file as well as the folder containing all images in a ``data`` folder in project root.
 4. Adapt the location and name of the above mentioned files in train.py, if necessary.
 5. Create a .yaml file in the ``param`` folder in project root. You should give this file a meaningful name. Define in the file all parameters of the experiment you want to execute. An example .yaml file with explanations can be found in the ``param`` folder of this repository.
-6. Set ``model_name`` in ``train.py`` to the name given to the .yaml file containing the desired training parameters.
-7. Start training: ``python train.py``.
-8. During training, the loss and BLEU score evaluations on the train data will be stored inside a ``runs`` folder, named accoring to the model name given before. These data points can easily be visualized using Tensorboard. The trained model is stored as a ``.pth`` file in the folder ``saved_models``.
+6. Start training: ``python train.py modelname``. Set ``model_name`` to the name given to the .yaml file containing the desired training parameters.
+7. During training, the loss and BLEU score evaluations on the train data will be stored inside a ``runs`` folder, named accoring to the model name given before. These data points can easily be visualized using Tensorboard. The trained model is stored as a ``.pth`` file in the folder ``saved_models``.
 
 ## Evaluation on Test Set
 1. Make sure the .pth file of the model you want to evaluate exists in the ``saved_models`` folder.

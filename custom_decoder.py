@@ -19,7 +19,10 @@ class HardAttention(BahdanauAttention):
         super(HardAttention, self).__init__(*args, **kwargs)
 
     def forward(self, query: Tensor = None, mask: Tensor = None, values: Tensor = None) -> Tuple[Tensor, Tensor]:
+        # Alphas are obtained from 'soft' Bahdanau attention
         _, alphas = super(HardAttention, self).forward(query, mask, values)
+
+        # Sample from multinomial distribution, weights according to attention alphas => Regions to attend to are 'hard'
         distribution = Categorical(logits=alphas)
         alphas_hard = F.one_hot(distribution.sample(), num_classes=alphas.shape[-1]).float()
 

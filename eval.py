@@ -11,6 +11,10 @@ from train import setup_model
 from yaml_parser import parse_yaml
 
 if __name__ == '__main__':
+    """
+    This methid can be used to evaluate a trained model on the test split giving BLEU scores 1-4 
+    while applying Beam Search with beam sizes 1-4.
+    """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     model_name = 'weight_decay_scheduled'
@@ -54,16 +58,20 @@ if __name__ == '__main__':
                 prediction, _ = model.predict(data_test, inputs, data_test.max_length, beam_size)
                 decoded_prediction = data_test.corpus.vocab.arrays_to_sentences(prediction)
 
+                # Create ground truth references for each tested image
                 decoded_references = []
                 for image_name in image_names:
                     decoded_references.append(data_test.corpus.vocab.arrays_to_sentences(data_test.get_all_references_for_image_name(image_name)))
 
                 idx = beam_size - 1
+
+                # Bleu scores for all beam sizes are summed up, such that the average can be calculated at the end
                 bleu_1[idx] += bleu_score(decoded_prediction, decoded_references, max_n=1, weights=[1])
                 bleu_2[idx] += bleu_score(decoded_prediction, decoded_references, max_n=2, weights=[0.5] * 2)
                 bleu_3[idx] += bleu_score(decoded_prediction, decoded_references, max_n=3, weights=[1 / 3] * 3)
                 bleu_4[idx] += bleu_score(decoded_prediction, decoded_references, max_n=4, weights=[0.25] * 4)
 
+        # Print averages BLEU scores for each beam size
         for idx in range(len(bleu_1)):
             print(f'BEAM-{idx + 1}/BLEU-1', bleu_1[idx] / len(dataloader_test))
             print(f'BEAM-{idx + 1}/BLEU-2', bleu_2[idx] / len(dataloader_test))

@@ -22,7 +22,7 @@ Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder 
 
 ## Evaluation on Test Set
 1. Make sure the .pth file of the model you want to evaluate exists in the ``saved_models`` folder.
-2. In ``eval.py``, change the ``model_name`` to the name of the .pth file.
+2. In ``eval.py``, change the ``model_name`` to the name of a .yaml file containing the same entries as the trainining file and additionally the entry ``load_model``, set to the path of the .pth file. Example: ``load_model: 'saved_models/best_model.pth'``
 3. Start evaluating with ``python eval.py``. Evaluation will be done using the test split and results will be put out to the console.
 
 ## Best Model

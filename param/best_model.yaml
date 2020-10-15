@@ -17,4 +17,5 @@
   freeze_encoder: True,
   all_lower: False,
   decoder-num_layers: 1
+  # load_model: "best_model.pth"
 }

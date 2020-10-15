@@ -6,9 +6,14 @@ As baseline model we implement the approach of [Xu et al. (2015)](http://arxiv.o
 # Visit our Demo
 You can let our best-performing model generate captions for any image [here](https://image2caption.pascalperle.de/).
 
+<p align="center">
+  <img src="https://github.com/stdhd/image_captioning/raw/master/images/website_demo.gif?raw=true" alt="Website Demo"/>
+</p>
+
+
 # Model Architecture
 Just like [Xu et al. (2015)](http://arxiv.org/abs/1502.03044) we use an encoder network to retrieve features from images. The feature vector is then used to initialize a LSTM decoder, which unrolls a generated caption. For each step, an attention mechanism is applied on the feature vector. The attention mechanism is illustrated below using a real example and shows how our implementation attends to different areas of the image during unrolling.  
-![Unrolling](unroll-min.png)
+![Unrolling](images/unroll-min.png)
 
 # Usage
 ## Training
